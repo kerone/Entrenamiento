@@ -215,8 +215,14 @@ td.exn{text-align:left; font-size:12.5px}
 .effseg.L{background:var(--warn)} .effseg.X{background:var(--bad)}
 .lgd{display:flex; gap:12px; flex-wrap:wrap; margin-top:9px; font-size:11px; color:var(--mut)}
 .lgd i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px}
-.sparkrow{display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line); padding:7px 0}
-.sparkrow:last-child{border-bottom:0}
+.sparkrow{
+  display:flex; align-items:center; gap:8px; border:0; border-bottom:1px solid var(--line);
+  padding:7px 0; width:100%; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer;
+}
+.sparkwrap:last-child .sparkrow{border-bottom:0}
+.sparkdetail{padding:0 0 10px; border-bottom:1px solid var(--line)}
+.sparkwrap:last-child .sparkdetail{border-bottom:0}
+.sparkdetail .exchart{margin-top:4px; border-top:0; padding-top:0}
 .spname{flex:1; font-size:12.5px; min-width:0}
 .spvals{font-size:12px; font-variant-numeric:tabular-nums; color:var(--mut); white-space:nowrap}
 .spvals b{color:var(--ink)}
@@ -355,8 +361,13 @@ function save(){ S._ts=Date.now(); persist(); queueCloudPush(); }
 // Estrategia: cada cambio se sube (con 1,5 s de margen); al abrir se compara
 // _ts y gana el último en guardar.
 const SKEY='plan-hipertrofia-sync-v1';
+// Conexión por defecto incluida en la página (decisión del dueño): una X-Access-Key
+// limitada a LECTURA y ACTUALIZACIÓN de este bin — nunca la Master Key. El panel de
+// la portada permite sobreescribirla por dispositivo, y «Desconectar» la desactiva.
+const DEFAULT_SYNC={bin:'',key:''}; // ← rellenar con el Bin ID y la Access Key
 let SYNC={bin:'',key:'',hdr:''};
 try{ const r=localStorage.getItem(SKEY); if(r) Object.assign(SYNC,JSON.parse(r)); }catch(e){}
+if(!SYNC.bin&&!SYNC.off&&DEFAULT_SYNC.bin){ SYNC.bin=DEFAULT_SYNC.bin; SYNC.key=DEFAULT_SYNC.key; }
 function saveSync(){ try{ localStorage.setItem(SKEY,JSON.stringify(SYNC)); }catch(e){} }
 let pushT=null, syncMsg=SYNC.bin?'☁ aún sin comprobar':'';
 function setSyncMsg(t){
@@ -777,7 +788,7 @@ function renderHome(){
     }catch(e){ setSyncMsg('☁ error: '+e.message); }
   };
   const soff=$('#soff'); if(soff) soff.onclick=()=>{
-    SYNC={bin:'',key:'',hdr:''}; saveSync(); syncMsg='';
+    SYNC={bin:'',key:'',hdr:'',off:true}; saveSync(); syncMsg=''; // off: no volver a la conexión por defecto
     clearTimeout(rt); render();
   };
 }
@@ -809,7 +820,8 @@ function updateDayHud(){ // refresca contador, barra y puntos sin re-render
   const c=document.getElementById('dcount'); if(c) c.textContent=st[0]+'/'+st[1]+' ejercicios';
   const pr=document.querySelector('.dc-prog.day i'); if(pr) pr.style.width=Math.round(st[0]/st[1]*100)+'%';
   document.querySelectorAll('#pdots .pd').forEach((b,i)=>{
-    const id=d[2][i][0], done=exDone(id,week);
+    const ex=d[2][i]; if(!ex) return;
+    const id=ex[0], done=exDone(id,week);
     b.className='pd'+(done?' done':'')+(openEx===id?' cur':'');
     b.textContent=done?'✓':(i+1);
   });
@@ -833,7 +845,9 @@ function renderDay(){
   pg.scrollLeft=Math.max(0,exIdx(openEx))*pg.clientWidth;
   let sT=null;
   pg.onscroll=()=>{ clearTimeout(sT); sT=setTimeout(()=>{
+    if(!pg.isConnected||!pg.clientWidth) return; // pager ya desmontado (cambio de vista)
     const i=Math.max(0,Math.min(d[2].length-1,Math.round(pg.scrollLeft/pg.clientWidth)));
+    if(!d[2][i]) return;
     if(openEx!==d[2][i][0]){ openEx=d[2][i][0]; updateDayHud(); }
   },90); };
   m.onpointerdown=()=>clearTimeout(advT); // interacción manual cancela el auto-avance
@@ -911,7 +925,7 @@ function exChartCard(id){
   const pts=[], dataW=[];
   let any=false;
   for(let w=1;w<=7;w++){ const v=weight(id,w); pts.push(v); dataW.push(setsOf(id,w).some(marked)); if(v!=null) any=true; }
-  if(!any) return '';
+  if(!any) return '<div class="exchart"><div class="exchart-t">Progresión de peso</div><div class="hint" style="margin:2px 0 0">La gráfica aparece en cuanto calibres el peso del ejercicio (chip «¿kg? · calibrar» de arriba).</div></div>';
   const W=320,H=112,pl=12,pr=30,pt=16,pb=18;
   const vals=pts.filter(v=>v!=null);
   let min=Math.min(...vals), max=Math.max(...vals);
@@ -1027,7 +1041,7 @@ const GROUP={l1:'Hombro',l2:'Pecho',l3:'Hombro',l4:'Tríceps',l5:'Tríceps',l6:'
  v8:'Glúteo',v9:'Glúteo',v2:'Isquios',v3:'Gemelo',v4:'Hombro',v5:'Bíceps',v6:'Tríceps',v7:'Crunch' };
 GROUP.v7='Abs'; GROUP.s1='Espalda'; GROUP.s2='Espalda'; GROUP.s3='Espalda';
 GROUP.s4='Delt. post.'; GROUP.s5='Bíceps'; GROUP.s6='Abs';
-let progWeek=null;
+let progWeek=null, progEx=null;
 const fmt=n=>n.toLocaleString('es-ES');
 function latestDataWeek(){
   for(let w=7;w>=1;w--) for(const e of ALLEX) if(setsOf(e[0],w).some(marked)) return w;
@@ -1153,7 +1167,7 @@ function renderProg(){
   h+='<div class="wk-mini">';
   for(let w=1;w<=7;w++) h+='<button data-pw="'+w+'"'+(w===progWeek?' class="sel"':'')+'>S'+w+'</button>';
   h+='</div></div>';
-  // progresión por ejercicio
+  // progresión por ejercicio: toca una fila para desplegar su gráfica completa
   h+='<div class="card"><h2>Progresión de pesos</h2>';
   let rows='';
   DAYS.forEach(d=>{ if(!d[2])return; d[2].forEach(e=>{
@@ -1162,11 +1176,14 @@ function renderProg(){
     if(!pts.length) return;
     const w0=pts[0], w1=pts[pts.length-1];
     const d100=w0>0?Math.round((w1-w0)/w0*100):0;
-    rows+='<div class="sparkrow"><span class="spname">'+esc(e[1])+'</span>'+sparkline(pts)
-      +'<span class="spvals">'+w0+' → <b>'+w1+' kg</b>'+(pts.length>1&&w0>0?' <span class="'+(d100>0?'':'')+'">('+(d100>0?'+':'')+d100+'%)</span>':'')+'</span></div>';
+    rows+='<div class="sparkwrap">'
+      +'<button class="sparkrow" data-pex="'+id+'"><span class="spname">'+esc(e[1])+'</span>'+sparkline(pts)
+      +'<span class="spvals">'+w0+' → <b>'+w1+' kg</b>'+(pts.length>1&&w0>0?' ('+(d100>0?'+':'')+d100+'%)':'')+'</span></button>'
+      +(progEx===id?'<div class="sparkdetail">'+exChartCard(id)+'</div>':'')
+      +'</div>';
   });});
-  h+=rows||'<div class="hint">Configura pesos iniciales en Ejercicios para ver la progresión.</div>';
-  h+='<div class="hint">Peso de trabajo por semana hasta la S'+lw+'. El punto es el peso actual.</div></div>';
+  h+=rows||'<div class="hint">Calibra el peso de los ejercicios (chip «¿kg? · calibrar» durante el entreno) para ver la progresión.</div>';
+  h+='<div class="hint">Peso de trabajo por semana hasta la S'+lw+'. Toca un ejercicio para ver su gráfica completa.</div></div>';
   // peso corporal
   const bwc=bwChart();
   h+='<div class="card"><h2>Peso corporal</h2>';
@@ -1193,6 +1210,7 @@ function renderProg(){
   }
   m.innerHTML=h;
   m.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{ progWeek=+b.dataset.pw; renderProg(); });
+  m.querySelectorAll('[data-pex]').forEach(b=>b.onclick=()=>{ progEx=(progEx===b.dataset.pex)?null:b.dataset.pex; renderProg(); });
 }
 $('#nav-train').onclick=()=>{ if(tab==='train') dayView=null; tab='train'; render(); };
 $('#nav-prog').onclick=()=>{tab='prog';render();};
