@@ -280,7 +280,13 @@ td.exn{text-align:left; font-size:12.5px}
 .lgd i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px}
 .pxchart .exchart{border-top:0; padding-top:0; margin-top:2px}
 .pxchart .exchart-t{display:none}
-.pxgrid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px}
+#pxq{
+  width:100%; height:42px; margin-top:12px; padding:0 12px; font-size:14px;
+  background:var(--input); color:var(--ink); border:1px solid var(--line); border-radius:10px;
+  box-sizing:border-box; -webkit-appearance:none;
+}
+#pxq:focus{outline:2px solid var(--accent); outline-offset:-1px}
+.pxgrid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px}
 .pxcard{
   text-align:left; font:inherit; background:var(--surface2); border:1px solid var(--line);
   border-radius:12px; padding:10px 11px; cursor:pointer; color:var(--ink); min-width:0;
@@ -428,7 +434,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r23'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r24'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -1344,7 +1350,17 @@ function volCard(withSel){
   h+='<div class="hint">Series prescritas la semana S'+progWeek+' en toda la tabla (rampa y ajustes manuales incluidos): el músculo principal cuenta la serie entera y los secundarios media serie.</div></div>';
   return h;
 }
-let progWeek=null, progEx=null;
+let progWeek=null, progEx=null, pxQ='';
+const normTxt=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function applyPxFilter(){ // filtra las tarjetas en el DOM, sin re-render (no rompe el teclado)
+  const nq=normTxt(pxQ); let vis=0;
+  document.querySelectorAll('.pxcard').forEach(b=>{
+    const show=!nq||normTxt(b.dataset.name).includes(nq);
+    b.style.display=show?'':'none'; if(show) vis++;
+  });
+  const e=document.getElementById('pxnone');
+  if(e){ e.style.display=vis?'none':''; if(!vis) e.textContent='Sin resultados para «'+pxQ+'».'; }
+}
 const fmt=n=>n.toLocaleString('es-ES');
 function latestDataWeek(){
   for(let w=7;w>=1;w--) for(const e of ALLEX) if(setsOf(e[0],w).some(marked)) return w;
@@ -1496,16 +1512,18 @@ function renderProg(){
     h+='<div class="card"><h2>Progresión de pesos</h2>'
       +'<div class="hint" style="margin:0"><b>'+esc(EX[progEx][1])+'</b></div>'
       +'<div class="pxchart">'+exChartCard(progEx)+'</div>'
+      +'<input type="search" id="pxq" placeholder="Buscar ejercicio…" autocomplete="off" value="'+esc(pxQ)+'">'
       +'<div class="pxgrid">'
       +pxList.map(p=>{
         const d100=p.w0>0?Math.round((p.w1-p.w0)/p.w0*100):0;
-        return '<button class="pxcard'+(p.id===progEx?' sel':'')+'" data-pex="'+p.id+'">'
+        const hide=pxQ&&!normTxt(p.name).includes(normTxt(pxQ));
+        return '<button class="pxcard'+(p.id===progEx?' sel':'')+'" data-pex="'+p.id+'" data-name="'+esc(p.name)+'"'+(hide?' style="display:none"':'')+'>'
           +'<span class="px-name">'+esc(p.name)+'</span>'
           +'<span class="px-val">'+p.w1+' kg</span>'
           +'<span class="px-delta '+(d100>0?'up':d100<0?'dn':'neu')+'">'+(d100>0?'▲ +'+d100:d100<0?'▼ '+d100:'= 0')+'%</span>'
           +'</button>';
       }).join('')
-      +'</div></div>';
+      +'</div><div class="hint" id="pxnone" style="display:none"></div></div>';
   } else {
     h+='<div class="card"><h2>Progresión de pesos</h2><div class="hint">Calibra el peso de los ejercicios (chip «¿kg? · calibrar» durante el entreno) para ver la progresión.</div></div>';
   }
@@ -1536,6 +1554,8 @@ function renderProg(){
   m.innerHTML=h;
   m.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{ progWeek=+b.dataset.pw; renderProg(); });
   m.querySelectorAll('[data-pex]').forEach(b=>b.onclick=()=>{ progEx=b.dataset.pex; renderProg(); });
+  const pxi=$('#pxq');
+  if(pxi){ pxi.oninput=()=>{ pxQ=pxi.value; applyPxFilter(); }; applyPxFilter(); }
 }
 $('#nav-train').onclick=()=>{ if(tab==='train') dayView=null; tab='train'; render(); };
 $('#nav-today').onclick=()=>{ // logo central: portada, centrada en el día que toca
