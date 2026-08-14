@@ -278,17 +278,23 @@ td.exn{text-align:left; font-size:12.5px}
 .effseg.L{background:var(--warn)} .effseg.X{background:var(--bad)}
 .lgd{display:flex; gap:12px; flex-wrap:wrap; margin-top:9px; font-size:11px; color:var(--mut)}
 .lgd i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px}
-.sparkrow{
-  display:flex; align-items:center; gap:8px; border:0; border-bottom:1px solid var(--line);
-  padding:7px 0; width:100%; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer;
+.pxchart .exchart{border-top:0; padding-top:0; margin-top:2px}
+.pxchart .exchart-t{display:none}
+.pxgrid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px}
+.pxcard{
+  text-align:left; font:inherit; background:var(--surface2); border:1px solid var(--line);
+  border-radius:12px; padding:10px 11px; cursor:pointer; color:var(--ink); min-width:0;
 }
-.sparkwrap:last-child .sparkrow{border-bottom:0}
-.sparkdetail{padding:0 0 10px; border-bottom:1px solid var(--line)}
-.sparkwrap:last-child .sparkdetail{border-bottom:0}
-.sparkdetail .exchart{margin-top:4px; border-top:0; padding-top:0}
-.spname{flex:1; font-size:12.5px; min-width:0}
-.spvals{font-size:12px; font-variant-numeric:tabular-nums; color:var(--mut); white-space:nowrap}
-.spvals b{color:var(--ink)}
+.pxcard.sel{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; background:var(--surface)}
+.px-name{
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  font-size:11.5px; color:var(--mut); font-weight:600; line-height:1.25; min-height:2.5em;
+}
+.px-val{display:block; font-size:17px; font-weight:800; margin-top:4px; font-variant-numeric:tabular-nums}
+.px-delta{display:inline-block; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px; margin-top:5px}
+.px-delta.up{background:var(--ok-bg); color:var(--ok)}
+.px-delta.dn{background:var(--bad-bg); color:var(--bad)}
+.px-delta.neu{background:var(--surface); color:var(--mut); border:1px solid var(--line)}
 .wk-mini{display:flex; gap:5px; flex-wrap:wrap; margin-top:8px}
 .wk-mini button{border:1px solid var(--line); background:var(--input); color:var(--mut); border-radius:7px; padding:4px 9px; font-size:12px; font-weight:700; cursor:pointer}
 .wk-mini button.sel{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
@@ -422,7 +428,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r22'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r23'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -1477,23 +1483,32 @@ function renderProg(){
   h+='</div></div>';
   // volumen prescrito por grupo muscular (tabla completa, con desglose por día)
   h+=volCard(false);
-  // progresión por ejercicio: toca una fila para desplegar su gráfica completa
-  h+='<div class="card"><h2>Progresión de pesos</h2>';
-  let rows='';
+  // progresión por ejercicio: gráfica fija arriba + selector de tarjetas con % de variación
+  const pxList=[];
   DAYS.forEach(d=>{ if(!d[2])return; d[2].forEach(e=>{
     const id=e[0]; if(weight(id,1)===null) return;
     const pts=[]; for(let w=1;w<=lw;w++){ const v=weight(id,w); if(v!=null) pts.push(v); }
     if(!pts.length) return;
-    const w0=pts[0], w1=pts[pts.length-1];
-    const d100=w0>0?Math.round((w1-w0)/w0*100):0;
-    rows+='<div class="sparkwrap">'
-      +'<button class="sparkrow" data-pex="'+id+'"><span class="spname">'+esc(e[1])+'</span>'+sparkline(pts)
-      +'<span class="spvals">'+w0+' → <b>'+w1+' kg</b>'+(pts.length>1&&w0>0?' ('+(d100>0?'+':'')+d100+'%)':'')+'</span></button>'
-      +(progEx===id?'<div class="sparkdetail">'+exChartCard(id)+'</div>':'')
-      +'</div>';
+    if(!pxList.some(p=>p.id===id)) pxList.push({id, name:e[1], w0:pts[0], w1:pts[pts.length-1]});
   });});
-  h+=rows||'<div class="hint">Calibra el peso de los ejercicios (chip «¿kg? · calibrar» durante el entreno) para ver la progresión.</div>';
-  h+='<div class="hint">Peso de trabajo por semana hasta la S'+lw+'. Toca un ejercicio para ver su gráfica completa.</div></div>';
+  if(pxList.length){
+    if(!progEx||!pxList.some(p=>p.id===progEx)) progEx=pxList[0].id;
+    h+='<div class="card"><h2>Progresión de pesos</h2>'
+      +'<div class="hint" style="margin:0"><b>'+esc(EX[progEx][1])+'</b></div>'
+      +'<div class="pxchart">'+exChartCard(progEx)+'</div>'
+      +'<div class="pxgrid">'
+      +pxList.map(p=>{
+        const d100=p.w0>0?Math.round((p.w1-p.w0)/p.w0*100):0;
+        return '<button class="pxcard'+(p.id===progEx?' sel':'')+'" data-pex="'+p.id+'">'
+          +'<span class="px-name">'+esc(p.name)+'</span>'
+          +'<span class="px-val">'+p.w1+' kg</span>'
+          +'<span class="px-delta '+(d100>0?'up':d100<0?'dn':'neu')+'">'+(d100>0?'▲ +'+d100:d100<0?'▼ '+d100:'= 0')+'%</span>'
+          +'</button>';
+      }).join('')
+      +'</div></div>';
+  } else {
+    h+='<div class="card"><h2>Progresión de pesos</h2><div class="hint">Calibra el peso de los ejercicios (chip «¿kg? · calibrar» durante el entreno) para ver la progresión.</div></div>';
+  }
   // peso corporal
   const bwc=bwChart();
   h+='<div class="card"><h2>Peso corporal</h2>';
@@ -1520,7 +1535,7 @@ function renderProg(){
   }
   m.innerHTML=h;
   m.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{ progWeek=+b.dataset.pw; renderProg(); });
-  m.querySelectorAll('[data-pex]').forEach(b=>b.onclick=()=>{ progEx=(progEx===b.dataset.pex)?null:b.dataset.pex; renderProg(); });
+  m.querySelectorAll('[data-pex]').forEach(b=>b.onclick=()=>{ progEx=b.dataset.pex; renderProg(); });
 }
 $('#nav-train').onclick=()=>{ if(tab==='train') dayView=null; tab='train'; render(); };
 $('#nav-today').onclick=()=>{ // logo central: portada, centrada en el día que toca
