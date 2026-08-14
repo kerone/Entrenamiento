@@ -2,6 +2,13 @@
 <meta charset="utf-8">
 <title>Plan hipertrofia · 7 semanas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f4e5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Entreno">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
   --bg:#f2f5f6; --surface:#ffffff; --surface2:#e9eef0; --ink:#1a2429; --mut:#5c6b73;
@@ -82,6 +89,10 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 .dc-det summary{cursor:pointer; font-weight:700}
 .howto{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:0 0 14px; font-size:12.5px; color:var(--mut)}
 .howto summary{cursor:pointer; font-weight:700; color:var(--ink); font-size:13px}
+.syncrow{display:flex; gap:8px; flex-wrap:wrap}
+.syncrow label{flex:1 1 140px; font-size:12px; color:var(--mut)}
+.syncrow input{width:100%; height:40px; font-size:13px; padding:0 8px; background:var(--input); color:var(--ink); border:1px solid var(--line); border-radius:8px; box-sizing:border-box}
+.syncrow input:focus{outline:2px solid var(--accent); outline-offset:-1px}
 /* ---- vista de día: sesión guiada ---- */
 .daybar{display:flex; align-items:center; gap:10px; margin:2px 0 6px}
 .backbtn{width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:18px; cursor:pointer; flex:0 0 auto}
@@ -336,7 +347,68 @@ function normReps(){ // formato viejo (números) → {r, e}
 }
 try{ const raw = localStorage.getItem(KEY); if(raw) S = Object.assign(S, JSON.parse(raw)); }catch(e){}
 normReps();
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ S._ts=Date.now(); persist(); queueCloudPush(); }
+
+// ---- sincronización opcional con JSONBin.io ----
+// La clave se guarda SOLO en este dispositivo (localStorage), nunca en el repo.
+// Estrategia: cada cambio se sube (con 1,5 s de margen); al abrir se compara
+// _ts y gana el último en guardar.
+const SKEY='plan-hipertrofia-sync-v1';
+let SYNC={bin:'',key:'',hdr:''};
+try{ const r=localStorage.getItem(SKEY); if(r) Object.assign(SYNC,JSON.parse(r)); }catch(e){}
+function saveSync(){ try{ localStorage.setItem(SKEY,JSON.stringify(SYNC)); }catch(e){} }
+let pushT=null, syncMsg=SYNC.bin?'☁ aún sin comprobar':'';
+function setSyncMsg(t){
+  syncMsg=t;
+  const el=document.getElementById('syncst'); if(el) el.textContent=t;
+  const s=document.getElementById('syncsum');
+  if(s) s.textContent=!SYNC.bin?'':t.indexOf('error')>=0?'☁ ⚠':(t.indexOf('…')>=0?'☁ …':'☁ ✓');
+}
+async function binReq(method,body){
+  const url='https://api.jsonbin.io/v3/b/'+encodeURIComponent(SYNC.bin)+(method==='GET'?'/latest':'');
+  // admite Access Key o Master Key: prueba una y, si da 401, la otra; recuerda cuál funcionó
+  const order=SYNC.hdr==='X-Master-Key'?['X-Master-Key','X-Access-Key']:['X-Access-Key','X-Master-Key'];
+  let last=0;
+  for(const hn of order){
+    const h={}; h[hn]=SYNC.key;
+    if(method!=='GET'){ h['Content-Type']='application/json'; h['X-Bin-Versioning']='false'; }
+    let res;
+    try{ res=await fetch(url,{method:method, headers:h, body:body?JSON.stringify(body):undefined}); }
+    catch(e){ throw new Error('sin conexión'); }
+    if(res.ok){ if(SYNC.hdr!==hn){ SYNC.hdr=hn; saveSync(); } return res.json(); }
+    last=res.status;
+    if(res.status!==401) break;
+  }
+  throw new Error('HTTP '+last+(last===401?' (clave incorrecta)':last===404?' (bin no encontrado)':''));
+}
+function queueCloudPush(){
+  if(!SYNC.bin||!SYNC.key) return;
+  clearTimeout(pushT); setSyncMsg('☁ cambios pendientes…');
+  pushT=setTimeout(()=>{ pushT=null; cloudPush(); },1500);
+}
+async function cloudPush(){
+  if(!SYNC.bin||!SYNC.key) return;
+  clearTimeout(pushT); pushT=null;
+  try{ setSyncMsg('☁ guardando…'); await binReq('PUT',S); setSyncMsg('☁ sincronizado a las '+new Date().toTimeString().slice(0,5)); }
+  catch(e){ setSyncMsg('☁ error al subir: '+e.message+' — los datos siguen en este dispositivo'); }
+}
+function applyRemote(rem){
+  S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{}},rem);
+  normReps(); persist(); render();
+}
+async function cloudPull(){
+  if(!SYNC.bin||!SYNC.key) return;
+  try{
+    setSyncMsg('☁ comprobando la nube…');
+    const j=await binReq('GET');
+    const rem=j&&j.record;
+    if(rem&&typeof rem==='object'&&rem.reps&&(+rem._ts||0)>(+S._ts||0)){
+      applyRemote(rem); setSyncMsg('☁ datos traídos de la nube'); return;
+    }
+    if(S._ts) await cloudPush(); else setSyncMsg('☁ conectado');
+  }catch(e){ setSyncMsg('☁ error al conectar: '+e.message); }
+}
 
 function inc(id){ const v = S.inc[id]; return (v===undefined||v==='') ? EX[id][5] : +v; }
 const NOCALC = new Set(['s1','m4','s6']); // lastre/corporal: sin cálculo de 1RM
@@ -653,10 +725,18 @@ function renderHome(){
         +'<div class="dc-prog"><i style="width:'+Math.round(st[0]/st[1]*100)+'%"></i></div></button>';
     }
   });
-  h+='<details class="howto" style="margin-top:14px"><summary>Copia de seguridad</summary><div style="margin-top:6px">'
-    +'<div class="hint" style="margin-top:0">Los datos viven en este navegador. Exporta de vez en cuando por si limpias datos o cambias de móvil.</div>'
+  h+='<details class="howto" style="margin-top:14px"><summary>Copia de seguridad y nube <span id="syncsum"></span></summary><div style="margin-top:6px">'
+    +'<div class="hint" style="margin-top:0"><b>Local:</b> exporta de vez en cuando por si limpias datos del navegador.</div>'
     +'<div style="display:flex;gap:8px;margin:8px 0"><button class="btn" id="exp">Exportar</button><button class="btn ghost" id="imp">Importar</button></div>'
-    +'<textarea id="io" placeholder="El texto exportado aparece aquí; pégalo aquí para importar."></textarea></div></details>';
+    +'<textarea id="io" placeholder="El texto exportado aparece aquí; pégalo aquí para importar."></textarea>'
+    +'<div class="hint" style="margin-top:12px"><b>Nube (jsonbin.io):</b> crea un bin privado, pega dentro el texto de «Exportar» (o el JSON inicial vacío) y conecta aquí con el ID del bin y tu Access Key con permisos de lectura y actualización. Cada cambio se sube solo y al abrir la app se traen los datos más recientes: el último en guardar gana. La clave se guarda solo en este dispositivo.</div>'
+    +'<div class="syncrow"><label>ID del bin<br><input type="text" id="sbin" autocomplete="off" value="'+esc(SYNC.bin||'')+'"></label>'
+    +'<label>Access Key<br><input type="password" id="skey" autocomplete="off" value="'+esc(SYNC.key||'')+'"></label></div>'
+    +'<div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap"><button class="btn" id="sconn">'+(SYNC.bin?'Reconectar':'Conectar')+'</button>'
+    +(SYNC.bin?'<button class="btn ghost" id="spush">Subir ahora</button><button class="btn ghost" id="spull">Traer de la nube</button><button class="btn ghost" id="soff">Desconectar</button>':'')
+    +'</div>'
+    +'<div class="hint" id="syncst">'+esc(syncMsg||'sin configurar')+'</div>'
+    +'</div></details>';
   m.innerHTML=h;
   m.querySelectorAll('[data-goday]').forEach(b=>b.onclick=()=>{
     dayView=+b.dataset.goday; openEx=null; calEx=null;
@@ -680,6 +760,26 @@ function renderHome(){
       const d=JSON.parse($('#io').value); if(!d||typeof d!=='object')throw 0;
       S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{}},d); normReps(); save(); render(); alert('Importado ✓');
     }catch(e){ alert('Ese texto no es una copia válida.'); } };
+  $('#sconn').onclick=()=>{
+    SYNC.bin=$('#sbin').value.trim(); SYNC.key=$('#skey').value.trim(); SYNC.hdr='';
+    saveSync();
+    if(!SYNC.bin||!SYNC.key){ setSyncMsg('faltan el ID del bin o la clave'); return; }
+    clearTimeout(rt); render();
+    cloudPull();
+  };
+  const spush=$('#spush'); if(spush) spush.onclick=()=>cloudPush();
+  const spull=$('#spull'); if(spull) spull.onclick=async()=>{
+    try{
+      setSyncMsg('☁ descargando…');
+      const j=await binReq('GET'); const rem=j&&j.record;
+      if(!(rem&&typeof rem==='object'&&rem.reps)) throw new Error('el bin no tiene datos válidos');
+      applyRemote(rem); setSyncMsg('☁ datos traídos de la nube');
+    }catch(e){ setSyncMsg('☁ error: '+e.message); }
+  };
+  const soff=$('#soff'); if(soff) soff.onclick=()=>{
+    SYNC={bin:'',key:'',hdr:''}; saveSync(); syncMsg='';
+    clearTimeout(rt); render();
+  };
 }
 
 // ---- vista de día: un ejercicio a pantalla completa, desliza ↔ para cambiar ----
@@ -1097,4 +1197,7 @@ function renderProg(){
 $('#nav-train').onclick=()=>{ if(tab==='train') dayView=null; tab='train'; render(); };
 $('#nav-prog').onclick=()=>{tab='prog';render();};
 render();
+cloudPull();
+if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js').catch(function(){}); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'&&pushT) cloudPush(); }); // al salir de la app, apura la subida pendiente
 </script>
