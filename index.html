@@ -62,15 +62,18 @@ header{
 #themebtn svg{width:18px; height:18px}
 h1{font-size:17px; margin:0 0 2px; letter-spacing:.2px}
 .sub{font-size:12px; color:var(--mut)}
-.weekbar{display:flex; gap:6px; overflow-x:auto; padding:10px 0 4px; -webkit-overflow-scrolling:touch}
-.weekbar::-webkit-scrollbar{display:none}
-.wchip{
-  flex:0 0 auto; border:1px solid var(--line); background:var(--surface);
-  color:var(--ink); border-radius:8px; padding:7px 12px; font-size:13px; font-weight:600;
-  cursor:pointer;
+.weekbar{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; padding:10px 0 7px}
+.wcell{
+  border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:12px;
+  padding:6px 2px 5px; font:inherit; cursor:pointer; text-align:center; min-width:0;
 }
-.wchip.sel{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
-.wchip .d{display:block; font-size:10px; font-weight:400; opacity:.75}
+.wcell .wk-n{display:block; font-size:15px; font-weight:800; line-height:1.15}
+.wcell .wk-d{display:block; font-size:9.5px; color:var(--mut); white-space:nowrap; overflow:hidden}
+.wcell.done .wk-n::after{content:'✓'; font-size:10px; color:var(--ok); margin-left:2px}
+.wcell.sel{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.wcell.sel .wk-d{color:var(--accent-ink); opacity:.85}
+.wcell.sel.done .wk-n::after{color:var(--accent-ink)}
+.wcell.today:not(.sel){border-color:var(--accent)}
 main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 /* ---- portada: tarjetas de día ---- */
 .daycard{
@@ -303,21 +306,32 @@ textarea{
   border:1px solid var(--line); border-radius:8px; font-size:11px; padding:8px;
 }
 .rampa{color:var(--accent); font-size:11px; font-weight:700; letter-spacing:.4px}
-.chk{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--mut); margin:0 0 12px}
-.chk .cbtns{display:flex; gap:4px}
-.chk button{width:36px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--input); color:var(--mut); font-weight:800; cursor:pointer}
-.chk button.ok.on{background:var(--ok-bg); color:var(--ok); border-color:var(--ok)}
-.chk button.bad.on{background:var(--bad-bg); color:var(--bad); border-color:var(--bad)}
+.checkin{
+  background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:2px 14px; margin:0 0 12px; box-shadow:0 1px 3px rgba(0,0,0,.07);
+}
+.ci-row{display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.ci-row:last-child{border-bottom:0}
+.ci-lbl{flex:1 1 130px; min-width:0}
+.ci-lbl b{display:block; font-size:13.5px}
+.ci-lbl span{display:block; font-size:11.5px; color:var(--mut); margin-top:1px}
+.ci-row input{
+  width:76px; height:42px; text-align:center; font-size:16px; font-weight:700;
+  background:var(--input); color:var(--ink); border:1px solid var(--line); border-radius:10px;
+  font-variant-numeric:tabular-nums; flex:0 0 auto;
+}
+.ci-row input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+.cbtns{display:flex; gap:5px; flex:0 0 auto}
+.cbtns button{width:42px; height:38px; border-radius:10px; border:1px solid var(--line); background:var(--input); color:var(--mut); font-weight:800; cursor:pointer}
+.cbtns button.ok.on{background:var(--ok-bg); color:var(--ok); border-color:var(--ok)}
+.cbtns button.bad.on{background:var(--bad-bg); color:var(--bad); border-color:var(--bad)}
+.chip.okc{background:var(--ok-bg); border-color:var(--ok); color:var(--ok)}
+.chip.warnc{background:var(--warn-bg); border-color:var(--warn); color:var(--warn)}
 .setbtns{display:inline-flex; gap:4px; vertical-align:middle; margin:0 2px}
 .setbtns button{width:30px; height:30px; border-radius:7px; border:1px solid var(--line); background:var(--input); color:var(--ink); font-weight:800; font-size:15px; cursor:pointer; line-height:1}
 .presnote{font-size:12px; font-weight:600; margin-top:5px}
 .presnote.up{color:var(--info)} .presnote.hold{color:var(--warn)}
 .ovs{color:var(--accent); font-weight:700}
-.bw{display:flex; align-items:center; gap:10px; margin:2px 0 12px; font-size:13px; color:var(--mut)}
-.bw input{
-  width:80px; height:40px; text-align:center; font-size:16px; font-weight:600;
-  background:var(--input); color:var(--ink); border:1px solid var(--line); border-radius:8px;
-}
 #resttimer{
   position:fixed; left:12px; right:12px;
   bottom:calc(86px + env(safe-area-inset-bottom)); z-index:20;
@@ -408,7 +422,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r21'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r22'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -768,21 +782,23 @@ function render(){
   }
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('sel'));
   $('#nav-'+(tab==='train'?'train':'prog')).classList.add('sel');
-  $('#weekbar').style.display = (tab==='train'&&dayView===null)?'flex':'none';
+  $('#weekbar').style.display = (tab==='train'&&dayView===null)?'grid':'none';
   if(tab==='train'){ if(dayView===null){ renderWeekbar(); renderHome(); } else renderDay(); }
   else renderProg();
 }
 
-function renderWeekbar(){
+function renderWeekbar(){ // vista calendario: una celda por semana
   const bar=$('#weekbar'); bar.innerHTML='';
+  const cw=currentWeek();
   for(let w=1;w<=7;w++){
+    const a=new Date(W1); a.setDate(a.getDate()+7*(w-1));
     const b=document.createElement('button');
-    b.className='wchip'+(w===week?' sel':'');
-    b.innerHTML=(w===7?'S7 · Deload':'Semana '+w)+(weekDone(w)?' ✓':'')+'<span class="d">'+span(w)+'</span>';
+    b.className='wcell'+(w===week?' sel':'')+(weekDone(w)?' done':'')+(w===cw?' today':'');
+    b.innerHTML='<span class="wk-n">'+w+'</span><span class="wk-d">'+(w===7?'deload':a.getDate()+' '+MES[a.getMonth()])+'</span>';
+    b.title='Semana '+w+' · '+span(w);
     b.onclick=()=>{week=w;render();};
     bar.appendChild(b);
   }
-  bar.querySelector('.sel')?.scrollIntoView({inline:'center',block:'nearest'});
 }
 
 const EFFDESC={
@@ -809,13 +825,25 @@ function nextPending(di,afterId){ // siguiente pendiente en orden, volviendo a l
 function renderHome(){
   const m=$('#main'); const deload=week===7;
   m.onpointerdown=null;
-  let h='<div class="bw">Peso corporal lunes (kg): <input type="number" inputmode="decimal" step="0.1" id="bwin" value="'+(S.bw[week]??'')+'"><span id="bwnote"></span></div>';
-  if(!deload){
-    const c=S.chk[week]||{};
-    const chip=(f,v,lbl)=>'<button class="'+(v==='ok'?'ok':'bad')+((c[f]===v)?' on':'')+'" data-chk="'+f+'" data-v="'+v+'">'+lbl+'</button>';
-    h+='<div class="chk">Chequeo (regula la rampa): sueño ≥7 h <span class="cbtns">'+chip('sl','ok','✓')+chip('sl','bad','✗')
-      +'</span> · codos/hombros <span class="cbtns">'+chip('jt','ok','✓')+chip('jt','bad','✗')+'</span></div>';
+  const c=S.chk[week]||{};
+  const chkBtn=(f,v,lbl)=>'<button class="'+(v==='ok'?'ok':'bad')+((c[f]===v)?' on':'')+'" data-chk="'+f+'" data-v="'+v+'">'+lbl+'</button>';
+  let note='', noteCls='';
+  const prevBw=S.bw[week-1], nowBw=S.bw[week];
+  if(prevBw&&nowBw){
+    const pct=((nowBw-prevBw)/prevBw*100);
+    note=pct.toFixed(1).replace('.',',')+'% · '+(pct<=-0.8?'rápido: +150 kcal':pct<=-0.4?'ritmo bueno':pct<0?'lento':'sin pérdida');
+    noteCls=pct<=-0.8?' warnc':(pct<=-0.4?' okc':'');
   }
+  let h='<div class="checkin">'
+    +'<div class="ci-row"><div class="ci-lbl"><b>Peso corporal</b><span>lunes en ayunas (kg)</span></div>'
+    +'<input type="number" inputmode="decimal" step="0.1" id="bwin" value="'+(S.bw[week]??'')+'">'
+    +(note?'<span class="chip'+noteCls+'">'+note+'</span>':'')
+    +'</div>';
+  if(!deload){
+    h+='<div class="ci-row"><div class="ci-lbl"><b>Sueño ≥7 h</b><span>regula la rampa de series</span></div><div class="cbtns">'+chkBtn('sl','ok','✓')+chkBtn('sl','bad','✗')+'</div></div>'
+      +'<div class="ci-row"><div class="ci-lbl"><b>Codos y hombros</b><span>sin molestias esta semana</span></div><div class="cbtns">'+chkBtn('jt','ok','✓')+chkBtn('jt','bad','✗')+'</div></div>';
+  }
+  h+='</div>';
   if(!deload && week>1){ // freno sistémico: semana previa demasiado al límite
     const c=effortDist(week-1), tot=c.F+c.E+c.L+c.X;
     if(tot>=10 && (c.L+c.X)/tot>=0.4)
@@ -866,12 +894,8 @@ function renderHome(){
     save(); clearTimeout(rt); render();
   });
   const bw=$('#bwin');
-  bw.onchange=()=>{ if(bw.value==='')delete S.bw[week]; else S.bw[week]=+bw.value; save(); scheduleRender(); };
-  const prev=S.bw[week-1], now=S.bw[week];
-  if(prev&&now){
-    const pct=((now-prev)/prev*100).toFixed(1);
-    $('#bwnote').textContent=pct+'% vs sem. '+(week-1)+(pct<=-0.8?' · rápido, +150 kcal':pct<=-0.4?' · ritmo bueno':pct<0?' · lento':' · sin pérdida');
-  }
+  const bwf=()=>{ if(bw.value==='')delete S.bw[week]; else S.bw[week]=+bw.value; save(); scheduleRender(); };
+  bw.onchange=bwf; bw.oninput=bwf;
   $('#exp').onclick=()=>{ $('#io').value=JSON.stringify(S); $('#io').select();
     try{navigator.clipboard.writeText($('#io').value);}catch(e){} };
   $('#imp').onclick=()=>{ try{
