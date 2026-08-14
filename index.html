@@ -318,6 +318,7 @@ const DAYS = [
  ['LUNES','Empuje — énfasis hombro',[
   ['l1','Press militar (barra o mancuernas de pie)',4,5,8,2.5,0,'barra 2,5 · mancuernas 2','2-3 min'],
   ['l2','Press banca inclinado',3,6,10,2.5,0,'barra','2-3 min'],
+  ['l7','Press banca plano en máquina',3,8,12,5,0,'máquina','1,5-2 min'],
   ['l3','Elevaciones laterales en polea (unilateral)',4,12,20,2.5,1,'peso de UNA mano','1-1,5 min'],
   ['l4','Press francés',3,8,12,2.5,1,'barra Z','1,5-2 min'],
   ['l5','Extensión tríceps sobre cabeza en cuerda',2,10,15,2.5,1,'polea','1-1,5 min'],
@@ -1061,7 +1062,7 @@ function wireExercise(m){
 }
 
 // ---- Progreso ----
-const GROUP={l1:'Hombro',l2:'Pecho',l3:'Hombro',l4:'Tríceps',l5:'Tríceps',l6:'Abs',
+const GROUP={l1:'Hombro',l2:'Pecho',l7:'Pecho',l3:'Hombro',l4:'Tríceps',l5:'Tríceps',l6:'Abs',
  m1:'Cuádriceps',v1:'Isquios',m5:'Cuádriceps',m6:'Cuádriceps',m3:'Gemelo',m4:'Abs',
  x1:'Bíceps',x2:'Bíceps',x3:'Tríceps',x4:'Tríceps',x5:'Hombro',x6:'Delt. post.',
  v8:'Glúteo',v9:'Glúteo',v2:'Isquios',v3:'Gemelo',v4:'Hombro',v5:'Bíceps',v6:'Tríceps',v7:'Crunch' };
@@ -1069,7 +1070,7 @@ GROUP.v7='Abs'; GROUP.s1='Espalda'; GROUP.s2='Espalda'; GROUP.s3='Espalda';
 GROUP.s4='Delt. post.'; GROUP.s5='Bíceps'; GROUP.s6='Abs';
 // clasificación completa: [músculo principal, [secundarios]] — el secundario cuenta media serie
 const MUSC={
- l1:['Hombro',['Tríceps']], l2:['Pecho',['Hombro','Tríceps']], l3:['Hombro',[]],
+ l1:['Hombro',['Tríceps']], l2:['Pecho',['Hombro','Tríceps']], l7:['Pecho',['Hombro','Tríceps']], l3:['Hombro',[]],
  l4:['Tríceps',[]], l5:['Tríceps',[]], s5:['Bíceps',[]], l6:['Abs',[]],
  m1:['Cuádriceps',['Glúteo']], v1:['Isquios',['Glúteo']], m5:['Cuádriceps',['Glúteo']],
  m3:['Gemelo',[]], m4:['Abs',[]],
