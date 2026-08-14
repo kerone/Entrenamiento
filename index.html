@@ -368,7 +368,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r13'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r14'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -459,6 +459,9 @@ async function cloudPull(){
 
 function inc(id){ const v = S.inc[id]; return (v===undefined||v==='') ? EX[id][5] : +v; }
 const NOCALC = new Set(['s1','m4','s6']); // lastre/corporal: sin cálculo de 1RM
+// Básicos (multiarticulares): objetivos con RIR 2 y el L frena la progresión (el fallo ahí cuesta caro).
+// Aislamientos: objetivos a RIR 1 y estar al límite no frena — es lo esperado cerca del fallo.
+const ISO = new Set(['l3','l4','l5','s5','l6','m3','m4','m6','x1','x2','x4','x5','x6','v2','v3','v4','v5','v6','v7','s4','s6']);
 function est(id){ // [1RM estimada, peso de inicio] desde la marca actual
   const c = S.cur[id]; if(!c||!c[0]||!c[1]) return null;
   const e = EX[id];
@@ -489,7 +492,7 @@ function walk(id,w){
     per[i] = cur; ev[i] = null;
     const f = effOf(arr[i], e);
     if(!f || cur===null || k<=0) continue;
-    if(f==='F'){ easy++; hard=0; if(easy>=2){ cur=+(cur+k).toFixed(2); ups++; easy=0; ev[i]='up'; } }
+    if(f==='F'){ easy++; hard=0; if(easy>=2){ if(cur>0&&k/cur<=0.075){ cur=+(cur+k).toFixed(2); ups++; ev[i]='up'; } easy=0; } } // salto >~8% de la carga: no subir en sesión, que suban las reps
     else if(f==='E'){ easy=0; hard=0; }
     else if(f==='L'){ hard++; easy=0; if(hard>=2){ cur=Math.max(0,+(cur-k).toFixed(2)); hard=0; ev[i]='down'; } }
     else if(f==='X'){ easy=0; hard=0; cur=Math.max(0,+(cur-k).toFixed(2)); downs++; ev[i]='down'; }
@@ -497,7 +500,7 @@ function walk(id,w){
   let next = base===null ? null : Math.max(0,+(base + k*(ups-downs)).toFixed(2));
   if(base!==null && ups===0 && downs===0 && k>0){ // tope del rango en todas Y ninguna al límite → sube
     const m = arr.filter(marked);
-    if(m.length>=e[2] && m.every(s=>{ const f=effOf(s,e); return s.r!=null && s.r>=e[4] && f!=='L' && f!=='X'; }))
+    if(m.length>=e[2] && m.every(s=>{ const f=effOf(s,e); return s.r!=null && s.r>=e[4] && f!=='X' && (f!=='L'||ISO.has(id)); }))
       next=+(base+k).toFixed(2);
   }
   return {per, ev, cur, next, ups, downs, any:arr.some(marked)};
@@ -524,8 +527,8 @@ function rmAt(id,w){
 // reps objetivo de la serie i: máximas con ese peso según 1RM, menos RIR 2, menos 1/serie de fatiga
 function repTarget(id,rm,wt,i){
   if(rm===null||!wt) return null;
-  const e=EX[id];
-  return Math.max(e[3], Math.min(e[4], Math.round(30*(rm/wt-1))-2-i));
+  const e=EX[id], buf=ISO.has(id)?1:2; // aislamientos apuntan más cerca del fallo
+  return Math.max(e[3], Math.min(e[4], Math.round(30*(rm/wt-1))-buf-i));
 }
 // Azules de la semana w (array por serie) — doble progresión guiada:
 // serie cumplida (reps ≥ azul, en F o E) → su azul sube +1 la semana siguiente (techo: tope rango);
@@ -542,18 +545,21 @@ function targetsFor(id,w){
   for(let x=Math.min(w-1,6); x>=1; x--){ if(setsOf(id,x).some(marked)){ ww=x; break; } }
   if(!ww || weight(id,ww)!==base) return fresh();
   const prevT=targetsFor(id,ww), prevA=setsOf(id,ww), out=[];
+  const iso=ISO.has(id);
   let frs=null, allMet=true;
   const nPrev=Math.min(TOT, prescribedSets(id,ww));
   for(let i=0;i<TOT;i++){
     const s=prevA[i], f=s?effOf(s,e):null, pt=prevT[i];
-    const done=s&&s.r!=null&&(f==='F'||f==='E');
+    const done=s&&s.r!=null&&(f==='F'||f==='E'||(iso&&f==='L')); // en aislamientos el límite no frena
     if(pt==null){ // sin azul previo (ejercicios sin 1RM): partir de lo hecho
       if(done) out.push(Math.max(lo,Math.min(hi,s.r)));
       else { frs=frs||fresh(); out.push(frs[i]); if(i<nPrev) allMet=false; }
       continue;
     }
     const met = done && s.r>=pt;
-    out.push(met ? Math.min(hi,Math.max(pt,s.r)) : pt);
+    let v = met ? Math.min(hi,Math.max(pt,s.r)) : pt;
+    if(met && f==='F') v=Math.min(hi,v+1); // sobraban 3+: su objetivo salta +2 contando la escalera
+    out.push(v);
     if(i<nPrev && !met) allMet=false;
   }
   // Escalera Helms (doble progresión, +1-2 reps/semana en total, no +1 a todas):
@@ -762,8 +768,13 @@ function renderHome(){
     h+='<div class="chk">Chequeo (regula la rampa): sueño ≥7 h <span class="cbtns">'+chip('sl','ok','✓')+chip('sl','bad','✗')
       +'</span> · codos/hombros <span class="cbtns">'+chip('jt','ok','✓')+chip('jt','bad','✗')+'</span></div>';
   }
+  if(!deload && week>1){ // freno sistémico: semana previa demasiado al límite
+    const c=effortDist(week-1), tot=c.F+c.E+c.L+c.X;
+    if(tot>=10 && (c.L+c.X)/tot>=0.4)
+      h+='<div style="background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:12.5px;font-weight:600">⚠ La semana '+(week-1)+' acabó muy al límite ('+Math.round((c.L+c.X)/tot*100)+'% de series en L/X). Repite pesos, no añadas series y prioriza dormir; si vuelve a pasar, adelanta el deload.</div>';
+  }
   if(deload) h+='<div class="hint" style="margin-bottom:10px">🔸 Deload: mitad de las series que te ganaste, mismo peso que acabó la semana 6. Sal del gimnasio con sensación de no haber hecho nada — ese es el objetivo.</div>';
-  else h+='<details class="howto"><summary>¿Cómo funciona la progresión?</summary><div style="margin-top:6px">La app <b>prescribe</b> series, reps (azul <b>→8</b>) y peso. Cumple TODOS los azules del ejercicio (reps y marca <b>F</b> o <b>E</b>) → la semana siguiente suben +1 las <b>dos series más flojas</b> (escalera: 5-5-5-5 → 6-6-5-5 → 6-6-6-6…); una serie incumplida o en L → se repite toda la prescripción; tope del rango en todas → sube el peso y la escalera arranca de nuevo. Desde la <b>semana 3</b> añade +1 serie/semana rotando entre lateral, bíceps y tríceps, SOLO si la semana anterior quedó completa, sin fallos, sin pasarte de series al límite y con el chequeo en verde; si no, se congela (nunca baja sola). Ajusta a mano con <b>− +</b> si un día no llegas. Marca tras cada serie: <b>F</b> fácil (RIR ≥3) · <b>E</b> exigente (1-2) · <b>L</b> al límite (0-1) · <b>X</b> fallo. Dos F seguidas → sube peso ya · X → baja ya · dos L → afloja el resto de la sesión.</div></details>';
+  else h+='<details class="howto"><summary>¿Cómo funciona la progresión?</summary><div style="margin-top:6px">La app <b>prescribe</b> series, reps (azul <b>→8</b>) y peso. Cumple TODOS los azules del ejercicio (reps y marca <b>F</b> o <b>E</b>) → la semana siguiente suben +1 las <b>dos series más flojas</b> (escalera: 5-5-5-5 → 6-6-5-5 → 6-6-6-6…); una serie incumplida o en L → se repite toda la prescripción; tope del rango en todas → sube el peso y la escalera arranca de nuevo. Desde la <b>semana 3</b> añade +1 serie/semana rotando entre lateral, bíceps y tríceps, SOLO si la semana anterior quedó completa, sin fallos, sin pasarte de series al límite y con el chequeo en verde; si no, se congela (nunca baja sola). Ajusta a mano con <b>− +</b> si un día no llegas. Marca tras cada serie: <b>F</b> fácil (RIR ≥3) · <b>E</b> exigente (1-2) · <b>L</b> al límite (0-1) · <b>X</b> fallo. Dos F seguidas → sube peso ya · X → baja ya · dos L → afloja el resto de la sesión. <b>Básicos vs aislamientos:</b> los aislamientos apuntan más cerca del fallo (RIR 1), estar al límite (L) no frena su escalera y una serie en F sube su objetivo +2; en ejercicios donde el salto de peso supera el ~8% de la carga, dos F no suben el peso en plena sesión — suben las reps.</div></details>';
   DAYS.forEach((d,di)=>{
     const today=di===todayIdx;
     if(!d[2]){
