@@ -384,7 +384,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r17'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r18'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -648,8 +648,10 @@ function currentWeek(){
 let tab='train', week=currentWeek();
 let dayView=null, openEx=null, calEx=null, advT=null; // navegación: portada → día → ejercicio actual
 const todayIdx=(()=>{const g=new Date().getDay();return g===0?6:g-1;})();
-let rt=null;
+let rt=null, lastType=0;
 function scheduleRender(){ clearTimeout(rt); rt=setTimeout(render,180); } // deja aterrizar el tap que provocó el blur
+// mientras se escribe no destruimos la casilla activa; al parar de teclear ~1,2 s, sí
+document.addEventListener('input',e=>{ if(e.target&&e.target.tagName==='INPUT'&&e.target.closest('main')) lastType=Date.now(); },true);
 
 function exDone(id,w){
   let n=0; for(const s of setsOf(id,w)) if(marked(s)) n++;
@@ -734,9 +736,10 @@ function tickRest(){
 }
 
 function render(){
-  const ae=document.activeElement; // no destruir la casilla activa con el teclado abierto (Android deja el IME muerto)
-  if(ae&&ae.tagName==='INPUT'&&(ae.id==='bwin'||ae.closest('main'))){
+  const ae=document.activeElement; // no destruir la casilla activa mientras se teclea (Android deja el IME muerto)
+  if(ae&&ae.tagName==='INPUT'&&(ae.id==='bwin'||ae.closest('main'))&&Date.now()-lastType<1200){
     ae.addEventListener('blur',scheduleRender,{once:true});
+    clearTimeout(rt); rt=setTimeout(render,800); // reintenta: en Android cerrar el teclado no siempre dispara blur
     return;
   }
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('sel'));
@@ -1117,7 +1120,7 @@ function calPanel(e){
   const id=e[0], k=id+'-'+week, c=S.cur[id]||['',''], r=est(id);
   let p='<div class="calpanel">';
   if(!NOCALC.has(id)){
-    p+='<div class="hint" style="margin:0 0 4px"><b>Calibrar:</b> apunta una serie reciente llevada cerca del fallo y se recalcula tu peso de trabajo (te deja 2 reps en reserva).</div>'
+    p+='<div class="hint" style="margin:0 0 4px"><b>Calibrar:</b> apunta una serie reciente llevada cerca del fallo y se recalcula tu peso de trabajo. Si ya llevas semanas entrenadas, fija el peso desde esta semana sin reescribir el histórico.</div>'
       +'<div class="cfgrow">'
       +'<label>Ahora muevo (kg)<br><input type="number" inputmode="decimal" step="0.5" data-ckg="'+id+'" value="'+c[0]+'"></label>'
       +'<span style="font-size:16px;color:var(--mut)">×</span>'
@@ -1204,27 +1207,36 @@ function wireExercise(m){
     if(nx) gotoEx(nx,true);
   });
   m.querySelectorAll('[data-fin]').forEach(b=>b.onclick=()=>showFinModal());
-  m.querySelectorAll('[data-ckg],[data-crep]').forEach(el=>el.onchange=()=>{
+  const wire=(el,fn)=>{ el.onchange=fn; el.oninput=fn; }; // Android puede no disparar change al cerrar el teclado
+  m.querySelectorAll('[data-ckg],[data-crep]').forEach(el=>wire(el,()=>{
     const id=el.dataset.ckg||el.dataset.crep;
     const kg=m.querySelector('[data-ckg="'+id+'"]').value;
     const rp=m.querySelector('[data-crep="'+id+'"]').value;
     if(kg===''&&rp==='') delete S.cur[id]; else S.cur[id]=[+kg||0,+rp||0];
-    const r=est(id); if(r) S.base[id]=r[1];
+    const r=est(id);
+    if(r){
+      let hasPrev=false;
+      for(let x=1;x<week;x++) if(setsOf(id,x).some(marked)){ hasPrev=true; break; }
+      // a mitad de plan la recalibración fija ESTA semana: no reescribe a qué peso
+      // se hicieron las series pasadas (los objetivos se recalculan desde la 1RM viva)
+      if(week>1&&hasPrev) S.over[id+'-'+week]=r[1];
+      else S.base[id]=r[1];
+    }
     save(); scheduleRender();
-  });
-  m.querySelectorAll('[data-base]').forEach(el=>el.onchange=()=>{
+  }));
+  m.querySelectorAll('[data-base]').forEach(el=>wire(el,()=>{
     if(el.value==='')delete S.base[el.dataset.base]; else S.base[el.dataset.base]=+el.value;
     save(); scheduleRender();
-  });
-  m.querySelectorAll('[data-inc]').forEach(el=>el.onchange=()=>{
+  }));
+  m.querySelectorAll('[data-inc]').forEach(el=>wire(el,()=>{
     if(el.value==='')delete S.inc[el.dataset.inc]; else S.inc[el.dataset.inc]=+el.value;
     save(); scheduleRender();
-  });
-  m.querySelectorAll('[data-ovr]').forEach(el=>el.onchange=()=>{
+  }));
+  m.querySelectorAll('[data-ovr]').forEach(el=>wire(el,()=>{
     const k=el.dataset.ovr+'-'+week;
     if(el.value.trim()==='') delete S.over[k]; else S.over[k]=+el.value;
     save(); scheduleRender();
-  });
+  }));
 }
 
 // ---- Progreso ----
