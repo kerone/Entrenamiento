@@ -1,11 +1,11 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Plan hipertrofia · 7 semanas</title>
+<title>Entrenamiento</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f4e5f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Entreno">
+<meta name="apple-mobile-web-app-title" content="Entrenamiento">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -47,7 +47,7 @@ html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--ink);
   font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  padding-bottom:calc(64px + env(safe-area-inset-bottom));
+  padding-bottom:calc(80px + env(safe-area-inset-bottom));
 }
 header{
   position:sticky; top:0; z-index:5; background:var(--bg);
@@ -138,21 +138,24 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 }
 .sets input.extra{border-style:dashed; opacity:.85}
 .sets input:focus{outline:2px solid var(--accent); outline-offset:-1px}
-.setrow{display:flex; align-items:center; gap:6px; margin-top:7px; flex-wrap:wrap}
+.setrow{display:flex; align-items:center; gap:6px; margin-top:7px; flex-wrap:nowrap}
 .setrow.extra .setlbl{opacity:.65}
 .setrow.extra input{border-style:dashed}
-.setlbl{font-size:12.5px; color:var(--mut); min-width:104px; font-variant-numeric:tabular-nums; font-weight:600}
+.setlbl{
+  flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:12.5px; color:var(--mut); font-variant-numeric:tabular-nums; font-weight:600;
+}
 .setlbl .tgt{color:var(--accent)}
 .setrow input{
-  width:58px; height:42px; text-align:center; font-size:16px; font-weight:600;
+  flex:0 0 54px; width:54px; height:42px; text-align:center; font-size:16px; font-weight:600;
   font-variant-numeric:tabular-nums; color:var(--ink);
   background:var(--input); border:1px solid var(--line); border-radius:8px;
 }
 .setrow input:focus{outline:2px solid var(--accent); outline-offset:-1px}
-.eff{display:flex; gap:4px}
+.eff{display:flex; gap:3px; flex:0 0 auto}
 .eff button{
-  width:38px; height:42px; border-radius:8px; border:1px solid var(--line);
-  background:var(--input); color:var(--mut); font-weight:800; font-size:13px; cursor:pointer;
+  width:34px; height:42px; border-radius:8px; border:1px solid var(--line);
+  background:var(--input); color:var(--mut); font-weight:800; font-size:13px; cursor:pointer; padding:0;
 }
 .eff .sF.on{background:var(--info-bg); color:var(--info); border-color:var(--info)}
 .eff .sE.on{background:var(--ok-bg); color:var(--ok); border-color:var(--ok)}
@@ -171,15 +174,25 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 .pill.none{background:var(--surface2); color:var(--mut); font-weight:500}
 nav{
   position:fixed; left:0; right:0; bottom:0; z-index:10;
-  display:flex; background:var(--surface); border-top:1px solid var(--line);
+  display:flex; align-items:stretch; background:var(--surface); border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom);
 }
 nav button{
-  flex:1; background:none; border:0; color:var(--mut); font:inherit; font-size:12px;
-  padding:9px 0 10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px;
+  flex:1; background:none; border:0; color:var(--mut); font:inherit; font-size:11px; font-weight:600;
+  letter-spacing:.2px; padding:9px 0 10px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
 }
-nav button .ic{font-size:19px; line-height:1}
+nav button .nic{width:23px; height:23px}
 nav button.sel{color:var(--accent); font-weight:700}
+#nav-today{
+  flex:0 0 auto; width:56px; height:56px; padding:0; border-radius:50%;
+  align-self:center; margin:-22px 4px 6px;
+  background:linear-gradient(135deg,#2a6478,#16394a);
+  border:3px solid var(--bg); box-shadow:0 3px 10px rgba(0,0,0,.35);
+  display:flex; align-items:center; justify-content:center;
+}
+#nav-today svg{width:32px; height:32px}
+#nav-today:active{transform:scale(.96)}
 table{border-collapse:collapse; width:100%; font-size:13px; font-variant-numeric:tabular-nums}
 th,td{border:1px solid var(--line); padding:6px 7px; text-align:center}
 th{background:var(--surface2); font-size:12px}
@@ -207,6 +220,7 @@ td.exn{text-align:left; font-size:12.5px}
 .gtrack{flex:1; display:flex; align-items:center; gap:6px}
 .gfill{height:14px; background:var(--accent); border-radius:0 4px 4px 0; min-width:2px}
 .gval{font-size:12px; font-weight:700; font-variant-numeric:tabular-nums}
+.gdays{font-size:11px; color:var(--mut); margin:1px 0 6px 98px; font-variant-numeric:tabular-nums}
 .effrow{display:flex; align-items:center; gap:8px; margin-top:7px}
 .efflbl{flex:0 0 22px; font-size:12px; color:var(--mut); font-weight:700}
 .effbar{flex:1; display:flex; gap:2px; height:20px; border-radius:5px; overflow:hidden}
@@ -260,7 +274,7 @@ textarea{
 }
 #resttimer{
   position:fixed; left:12px; right:12px;
-  bottom:calc(70px + env(safe-area-inset-bottom)); z-index:20;
+  bottom:calc(86px + env(safe-area-inset-bottom)); z-index:20;
   display:flex; align-items:center; gap:10px;
   background:var(--accent); color:var(--accent-ink);
   border-radius:12px; padding:10px 14px;
@@ -278,15 +292,16 @@ textarea{
 </style>
 
 <header>
-  <h1>Plan hipertrofia — 7 semanas</h1>
-  <div class="sub" id="subline">Definición 2.400 kcal · empieza lunes 3 ago 2026</div>
+  <h1>Entrenamiento</h1>
+  <div class="sub" id="subline">Hipertrofia 7 semanas · definición 2.400 kcal · desde el 3 ago 2026</div>
   <div class="weekbar" id="weekbar"></div>
 </header>
 <main id="main"></main>
 <div id="resttimer" hidden></div>
 <nav>
-  <button id="nav-train" class="sel"><span class="ic">🏋️</span>Entreno</button>
-  <button id="nav-prog"><span class="ic">📈</span>Progreso</button>
+  <button id="nav-train" class="sel"><svg class="nic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="8" cy="14.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="14.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="16" cy="14.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="8" cy="17.8" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="17.8" r="1.15" fill="currentColor" stroke="none"/></svg><span>Entreno</span></button>
+  <button id="nav-today" title="Ir a la sesión de hoy"><svg viewBox="0 0 512 512" aria-hidden="true"><g transform="rotate(-30 256 256)" fill="#ffffff"><rect x="150" y="246" width="212" height="20" rx="10"/><rect x="120" y="196" width="34" height="120" rx="12"/><rect x="84" y="216" width="26" height="80" rx="10"/><rect x="358" y="196" width="34" height="120" rx="12"/><rect x="402" y="216" width="26" height="80" rx="10"/></g></svg></button>
+  <button id="nav-prog"><svg class="nic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><polyline points="4 15.5 9.5 10 13 13.5 20 6.5"/><circle cx="20" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg><span>Progreso</span></button>
 </nav>
 
 <script>
@@ -364,7 +379,7 @@ const SKEY='plan-hipertrofia-sync-v1';
 // Conexión por defecto incluida en la página (decisión del dueño): una X-Access-Key
 // limitada a LECTURA y ACTUALIZACIÓN de este bin — nunca la Master Key. El panel de
 // la portada permite sobreescribirla por dispositivo, y «Desconectar» la desactiva.
-const DEFAULT_SYNC={bin:'',key:''}; // ← rellenar con el Bin ID y la Access Key
+const DEFAULT_SYNC={bin:'6a7edb68f5f4af5e29152f6b',key:'$2a$10$oQ8acyf/6dXZJ0kAnMCfFucAel2loHQAKXUozO7pQjuNrAOZpxb4C'};
 let SYNC={bin:'',key:'',hdr:''};
 try{ const r=localStorage.getItem(SKEY); if(r) Object.assign(SYNC,JSON.parse(r)); }catch(e){}
 if(!SYNC.bin&&!SYNC.off&&DEFAULT_SYNC.bin){ SYNC.bin=DEFAULT_SYNC.bin; SYNC.key=DEFAULT_SYNC.key; }
@@ -646,6 +661,14 @@ function stopRest(){
   clearInterval(timer.int); timer.int=null; timer.id=null;
   document.getElementById('resttimer').hidden=true;
 }
+const IS_ANDROID=/android/i.test(navigator.userAgent);
+function sysTimer(){ // pasa el descanso restante al temporizador nativo de Android (suena con pantalla bloqueada)
+  if(!timer.id) return;
+  const left=Math.max(1,Math.ceil((timer.end-Date.now())/1000));
+  const msg=encodeURIComponent('Descanso — '+EX[timer.id][1].slice(0,40));
+  location.href='intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH='+left
+    +';S.android.intent.extra.alarm.MESSAGE='+msg+';B.android.intent.extra.alarm.SKIP_UI=true;end';
+}
 function tickRest(){
   const el=document.getElementById('resttimer');
   if(!timer.id){ el.hidden=true; return; }
@@ -659,9 +682,12 @@ function tickRest(){
   }else{
     el.className='';
     el.innerHTML='<b>'+Math.floor(left/60)+':'+(''+left%60).padStart(2,'0')+'</b>'
-      +'<span class="tname">descanso · '+esc(name)+'</span><button id="rtx">✕</button>';
+      +'<span class="tname">descanso · '+esc(name)+'</span>'
+      +(IS_ANDROID?'<button id="rtsys" title="Pasar al temporizador del móvil">⏲</button>':'')
+      +'<button id="rtx">✕</button>';
   }
   el.querySelector('#rtx').onclick=stopRest;
+  const rs=el.querySelector('#rtsys'); if(rs) rs.onclick=sysTimer;
 }
 
 function render(){
@@ -1041,6 +1067,50 @@ const GROUP={l1:'Hombro',l2:'Pecho',l3:'Hombro',l4:'Tríceps',l5:'Tríceps',l6:'
  v8:'Glúteo',v9:'Glúteo',v2:'Isquios',v3:'Gemelo',v4:'Hombro',v5:'Bíceps',v6:'Tríceps',v7:'Crunch' };
 GROUP.v7='Abs'; GROUP.s1='Espalda'; GROUP.s2='Espalda'; GROUP.s3='Espalda';
 GROUP.s4='Delt. post.'; GROUP.s5='Bíceps'; GROUP.s6='Abs';
+// clasificación completa: [músculo principal, [secundarios]] — el secundario cuenta media serie
+const MUSC={
+ l1:['Hombro',['Tríceps']], l2:['Pecho',['Hombro','Tríceps']], l3:['Hombro',[]],
+ l4:['Tríceps',[]], l5:['Tríceps',[]], s5:['Bíceps',[]], l6:['Abs',[]],
+ m1:['Cuádriceps',['Glúteo']], v1:['Isquios',['Glúteo']], m5:['Cuádriceps',['Glúteo']],
+ m3:['Gemelo',[]], m4:['Abs',[]],
+ x1:['Bíceps',[]], x2:['Bíceps',[]], x3:['Tríceps',['Pecho','Hombro']], x4:['Tríceps',[]],
+ x5:['Hombro',[]], x6:['Delt. post.',['Espalda']],
+ v8:['Glúteo',['Isquios','Cuádriceps']], v9:['Glúteo',['Isquios']], m6:['Cuádriceps',[]],
+ v2:['Isquios',[]], v3:['Gemelo',[]], v4:['Hombro',[]], v5:['Bíceps',[]], v6:['Tríceps',[]], v7:['Abs',[]],
+ s1:['Espalda',['Bíceps']], s2:['Espalda',['Bíceps','Delt. post.']], s3:['Espalda',['Bíceps']],
+ s4:['Delt. post.',[]], s6:['Abs',[]]
+};
+const DAYL=['L','M','X','J','V','S','D'];
+const fmtS=n=>(Math.round(n*10)/10).toString().replace('.',',');
+function volByGroup(w){ // volumen prescrito de toda la tabla, por grupo y por día
+  const g={};
+  DAYS.forEach((d,di)=>{ if(!d[2])return; d[2].forEach(e=>{
+    const id=e[0], n=prescribedSets(id,w), mm=MUSC[id]; if(!mm||!n) return;
+    const add=(grp,val)=>{ const o=g[grp]||(g[grp]={tot:0,days:{}}); o.tot+=val; o.days[di]=(o.days[di]||0)+val; };
+    add(mm[0],n); mm[1].forEach(sg=>add(sg,n*0.5));
+  });});
+  return g;
+}
+function volCard(withSel){
+  const vg=volByGroup(progWeek);
+  const vent=Object.entries(vg).sort((a,b)=>b[1].tot-a[1].tot);
+  let h='<div class="card"><h2>Volumen semanal por grupo muscular</h2>';
+  if(vent.length){
+    const vmax=vent[0][1].tot;
+    vent.forEach(([gn,o])=>{
+      const bd=Object.keys(o.days).map(Number).sort((a,b)=>a-b).map(di=>DAYL[di]+' '+fmtS(o.days[di])).join(' · ');
+      h+='<div class="gbar"><span class="glbl">'+gn+'</span><div class="gtrack"><div class="gfill" style="width:'+(o.tot/vmax*100).toFixed(0)+'%"></div><b class="gval">'+fmtS(o.tot)+'</b></div></div>'
+        +'<div class="gdays">'+bd+'</div>';
+    });
+  }
+  if(withSel){
+    h+='<div class="wk-mini">';
+    for(let w=1;w<=7;w++) h+='<button data-pw="'+w+'"'+(w===progWeek?' class="sel"':'')+'>S'+w+'</button>';
+    h+='</div>';
+  }
+  h+='<div class="hint">Series prescritas la semana S'+progWeek+' en toda la tabla (rampa y ajustes manuales incluidos): el músculo principal cuenta la serie entera y los secundarios media serie.</div></div>';
+  return h;
+}
 let progWeek=null, progEx=null;
 const fmt=n=>n.toLocaleString('es-ES');
 function latestDataWeek(){
@@ -1079,20 +1149,22 @@ function sessionsDone(w){
   for(let i=0;i<DAYS.length;i++){ const st=dayStats(i,w); if(st){ t++; if(st[0]===st[1]) d++; } }
   return [d,t];
 }
-function colChart(vals){ // tonelaje S1..S7
-  const W=320,H=132,base=110,top=14,step=W/7,bw=22;
-  const max=Math.max(...vals,1);
+function colChart(vals){ // tonelaje S1..S7 en línea
+  const W=320,H=132,pl=12,pr=36,pt=18,pb=20;
+  const pts=[]; vals.forEach((v,i)=>{ if(v>0) pts.push([i+1,v]); });
+  if(!pts.length) return '';
+  const vmax=Math.max(...pts.map(p=>p[1])), vmin=Math.min(...pts.map(p=>p[1]));
+  const span=(vmax-vmin)||vmax||1;
+  const lo=Math.max(0,vmin-span*0.2), hi=vmax+span*0.15;
+  const X=w=>pl+(W-pl-pr)*(w-1)/6, Y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
   let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
-  s+='<line x1="0" y1="'+base+'" x2="'+W+'" y2="'+base+'" stroke="var(--line)" stroke-width="1"/>';
-  let lastIdx=-1; vals.forEach((v,i)=>{ if(v>0) lastIdx=i; });
-  vals.forEach((v,i)=>{
-    const x=i*step+(step-bw)/2, h=v?Math.max(4,(base-top)*v/max):0, y=base-h;
-    if(v){
-      s+='<g'+(i===6?' opacity=".5"':'')+'><path d="M'+x+' '+base+' V'+(y+4)+' Q'+x+' '+y+' '+(x+4)+' '+y+' H'+(x+bw-4)+' Q'+(x+bw)+' '+y+' '+(x+bw)+' '+(y+4)+' V'+base+' Z" fill="var(--accent)"><title>Semana '+(i+1)+': '+fmt(v)+' kg</title></path></g>';
-      if(i===lastIdx) s+='<text x="'+(x+bw/2)+'" y="'+(y-5)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)">'+fmt(v)+'</text>';
-    }
-    s+='<text x="'+(i*step+step/2)+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" fill="var(--mut)">S'+(i+1)+'</text>';
+  [0.25,0.75].forEach(f=>{ const y=pt+(H-pt-pb)*f; s+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'; });
+  if(pts.length>1) s+='<polyline points="'+pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  pts.forEach((p,i)=>{
+    s+='<g'+(p[0]===7?' opacity=".5"':'')+'><circle cx="'+X(p[0]).toFixed(1)+'" cy="'+Y(p[1]).toFixed(1)+'" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"><title>Semana '+p[0]+': '+fmt(p[1])+' kg</title></circle></g>';
+    if(i===pts.length-1) s+='<text x="'+X(p[0]).toFixed(1)+'" y="'+(Y(p[1])-9).toFixed(1)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)">'+fmt(p[1])+'</text>';
   });
+  for(let w=1;w<=7;w++) s+='<text x="'+X(w).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" fill="var(--mut)">S'+w+'</text>';
   return s+'</svg>';
 }
 function sparkline(pts){ // pesos por semana de un ejercicio
@@ -1128,7 +1200,9 @@ function renderProg(){
   const m=$('#main');
   const lw=latestDataWeek();
   if(!lw){
-    m.innerHTML='<div class="card"><h2>Progreso</h2><div class="hint">Aún no hay series apuntadas. Los gráficos aparecen en cuanto marques la primera serie en Entreno.</div></div>';
+    if(progWeek===null||progWeek>7) progWeek=week;
+    m.innerHTML='<div class="card"><h2>Progreso</h2><div class="hint">Aún no hay series apuntadas. Los gráficos aparecen en cuanto marques la primera serie en Entreno.</div></div>'+volCard(true);
+    m.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{ progWeek=+b.dataset.pw; renderProg(); });
     return;
   }
   if(progWeek===null||progWeek>7) progWeek=lw;
@@ -1167,6 +1241,8 @@ function renderProg(){
   h+='<div class="wk-mini">';
   for(let w=1;w<=7;w++) h+='<button data-pw="'+w+'"'+(w===progWeek?' class="sel"':'')+'>S'+w+'</button>';
   h+='</div></div>';
+  // volumen prescrito por grupo muscular (tabla completa, con desglose por día)
+  h+=volCard(false);
   // progresión por ejercicio: toca una fila para desplegar su gráfica completa
   h+='<div class="card"><h2>Progresión de pesos</h2>';
   let rows='';
@@ -1213,6 +1289,12 @@ function renderProg(){
   m.querySelectorAll('[data-pex]').forEach(b=>b.onclick=()=>{ progEx=(progEx===b.dataset.pex)?null:b.dataset.pex; renderProg(); });
 }
 $('#nav-train').onclick=()=>{ if(tab==='train') dayView=null; tab='train'; render(); };
+$('#nav-today').onclick=()=>{ // logo central: directo a la sesión de hoy
+  tab='train'; calEx=null;
+  if(DAYS[todayIdx][2]){ dayView=todayIdx; openEx=null; }
+  else dayView=null; // día de descanso: portada
+  window.scrollTo(0,0); clearTimeout(rt); render();
+};
 $('#nav-prog').onclick=()=>{tab='prog';render();};
 render();
 cloudPull();

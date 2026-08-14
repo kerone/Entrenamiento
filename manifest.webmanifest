@@ -1,6 +1,6 @@
 {
-  "name": "Plan Hipertrofia",
-  "short_name": "Entreno",
+  "name": "Entrenamiento",
+  "short_name": "Entrenamiento",
   "description": "Plan de hipertrofia de 7 semanas con progresión automática",
   "start_url": ".",
   "scope": ".",
