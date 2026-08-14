@@ -119,6 +119,22 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 .exchart-t{font-size:12.5px; font-weight:700; margin-bottom:4px}
 .exchart svg{width:100%; height:auto; display:block}
 .calpanel{background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:10px}
+.ckbtn{flex:0 0 46px; width:46px; height:42px; border-radius:8px; border:1px solid var(--line); background:var(--input); color:var(--mut); font-weight:800; font-size:16px; cursor:pointer; padding:0}
+.ckbtn.eF{background:var(--info-bg); color:var(--info); border-color:var(--info)}
+.ckbtn.eE{background:var(--ok-bg); color:var(--ok); border-color:var(--ok)}
+.ckbtn.eL{background:var(--warn-bg); color:var(--warn); border-color:var(--warn)}
+.ckbtn.eX{background:var(--bad-bg); color:var(--bad); border-color:var(--bad)}
+#effmodal{position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center}
+#effmodal .fm{background:var(--surface); border:1px solid var(--line); border-radius:16px 16px 0 0; padding:16px 14px calc(16px + env(safe-area-inset-bottom)); width:100%; max-width:480px}
+#effmodal h3{margin:0 0 4px; font-size:14.5px}
+.effopt{display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--input); color:var(--ink); font:inherit; cursor:pointer; margin-top:8px}
+.effopt b{flex:0 0 32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:15px}
+.effopt span{font-size:13px; flex:1; line-height:1.3}
+.effopt.sF b{background:var(--info-bg); color:var(--info)}
+.effopt.sE b{background:var(--ok-bg); color:var(--ok)}
+.effopt.sL b{background:var(--warn-bg); color:var(--warn)}
+.effopt.sX b{background:var(--bad-bg); color:var(--bad)}
+.effopt.on{outline:2px solid var(--accent); outline-offset:-1px}
 #finmodal{position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px}
 #finmodal .fm{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 16px; max-width:340px; width:100%; box-shadow:0 8px 30px rgba(0,0,0,.35)}
 #finmodal h3{margin:0 0 6px; font-size:16px}
@@ -368,7 +384,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r14'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r15'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -742,7 +758,12 @@ function renderWeekbar(){
   bar.querySelector('.sel')?.scrollIntoView({inline:'center',block:'nearest'});
 }
 
-const EFFTITLE={F:'Fácil (RIR ≥3): sobraban 3+ reps',E:'Exigente (RIR 1-2)',L:'Al límite (RIR 0-1)',X:'Fallo: no llegué a las reps'};
+const EFFDESC={
+ F:'Fácil — me sobraban 3 o más reps (RIR ≥3)',
+ E:'Exigente — me quedaban 1-2 reps (RIR 1-2)',
+ L:'Al límite — 0-1 reps en la recámara (RIR 0-1)',
+ X:'Fallo — no llegué a las reps previstas'
+};
 
 // ---- portada: los días de la semana como tarjetas ----
 const REST_TXT={
@@ -936,7 +957,7 @@ function renderDay(){
     +'<div class="dc-prog day"><i style="width:'+Math.round(st[0]/st[1]*100)+'%"></i></div>'
     +'<div class="pagerdots" id="pdots">'+d[2].map((e,i)=>'<button class="pd" data-goex="'+e[0]+'">'+(i+1)+'</button>').join('')+'</div>';
   if(deload) h+='<div class="hint" style="margin:0 0 8px">🔸 Deload: mitad de series, peso final de la semana 6. Nada de acercarse al fallo.</div>';
-  h+='<div class="hint" style="margin:0 0 8px">Desliza ↔ o toca un número para cambiar de ejercicio — el orden es libre. Toca <b>F/E/L/X</b> tras cada serie: las reps se rellenan solas con el objetivo azul (corrígelas si hiciste otras) y «ant» te recuerda las de la semana pasada. Con todas las series marcadas pasa solo al siguiente pendiente.</div>';
+  h+='<div class="hint" style="margin:0 0 8px">Desliza ↔ o toca un número para cambiar de ejercicio — el orden es libre. Haz la serie y toca <b>✓</b>: eliges cómo ha ido y las reps se apuntan solas con el objetivo azul (corrígelas si hiciste otras); «ant» = semana pasada. Con todas marcadas pasa solo al siguiente pendiente.</div>';
   h+='<div class="pager" id="pager">'+d[2].map(e=>'<div class="expage"><div class="excard pagecard">'+exPage(e)+'</div></div>').join('')+'</div>';
   m.innerHTML=h;
   $('#backhome').onclick=()=>{ dayView=null; openEx=null; clearTimeout(advT); window.scrollTo(0,0); clearTimeout(rt); render(); };
@@ -998,10 +1019,9 @@ function exBody(e){
     rows+='<div class="setrow'+(i>=eng?' extra':'')+'">'
       +'<span class="setlbl">'+(wgt===null?'—':wgt+' kg')+(tgt!==null?' <b class="tgt">→'+tgt+'</b>':'')+prev+'</span>'
       +'<input type="number" inputmode="numeric" min="0" max="100" placeholder="'+(tgt!==null?tgt:'reps')+'" value="'+(s&&s.r!=null?s.r:'')+'" data-ex="'+id+'" data-set="'+i+'">'
-      +(deload?'':'<span class="eff">'+['F','E','L','X'].map(k=>
-        '<button class="s'+k+(f===k?' on':'')+'" data-eff="'+k+'" data-ex="'+id+'" data-set="'+i+'" data-tgt="'+(tgt!==null?tgt:'')+'" title="'+EFFTITLE[k]+'">'+k+'</button>').join('')+'</span>')
+      +'<button class="ckbtn'+(deload?(s&&s.r!=null?' eE':''):(f?' e'+f:''))+'" data-ck="'+id+'" data-set="'+i+'" data-tgt="'+(tgt!==null?tgt:'')+'" title="'+(f?'Cambiar el esfuerzo':'Serie hecha')+'">'+(deload?'✓':(f||'✓'))+'</button>'
       +'</div>';
-    if(!deload && i<arr.length && wk.ev[i]){
+    if(!deload && i<arr.length && wk.ev[i] && i<total-1){ // sin series restantes no hay nada que ajustar
       const after=(i+1<wk.per.length)?wk.per[i+1]:wk.cur;
       rows+='<div class="adj '+wk.ev[i]+'">'+(wk.ev[i]==='up'?'⬆ Resto de series a '+after+' kg':'⬇ Resto de series a '+after+' kg')+'</div>';
     }
@@ -1093,13 +1113,37 @@ function wireExercise(m){
     queueAdvance(el.dataset.ex);
     save(); maybeAskFinish(); scheduleRender(); // diferido: no romper el tap que sigue al teclado
   });
-  m.querySelectorAll('[data-eff]').forEach(b=>b.onclick=()=>{
-    const o=slot(b.dataset.ex,+b.dataset.set);
-    o.e=(o.e===b.dataset.eff)?null:b.dataset.eff;
-    if(o.e&&o.r==null&&b.dataset.tgt!=='') o.r=+b.dataset.tgt; // marcar esfuerzo confirma las reps objetivo
-    if(o.e) startRest(b.dataset.ex);
-    queueAdvance(b.dataset.ex);
-    save(); maybeAskFinish(); clearTimeout(rt); render();
+  function showEffPicker(id,i,tgt){ // hoja: ¿cómo ha ido la serie?
+    if(document.getElementById('effmodal')) return;
+    const cur=(S.reps[id+'-'+week]||[])[i];
+    const el=document.createElement('div'); el.id='effmodal';
+    el.innerHTML='<div class="fm"><h3>Serie '+(i+1)+' · '+esc(EX[id][1])+'</h3>'
+      +'<div class="hint" style="margin:0">¿Cómo ha ido? Si no escribiste reps, se apuntan las del objetivo.</div>'
+      +['F','E','L','X'].map(k=>'<button class="effopt s'+k+((cur&&cur.e===k)?' on':'')+'" data-k="'+k+'"><b>'+k+'</b><span>'+EFFDESC[k]+'</span></button>').join('')
+      +'<button class="btn ghost" id="effx" style="width:100%;margin-top:10px">Cancelar</button></div>';
+    document.body.appendChild(el);
+    el.onclick=e=>{ if(e.target===el) el.remove(); };
+    el.querySelector('#effx').onclick=()=>el.remove();
+    el.querySelectorAll('.effopt').forEach(ob=>ob.onclick=()=>{
+      const o=slot(id,i), k=ob.dataset.k;
+      o.e=(o.e===k)?null:k; // repetir la misma opción la desmarca
+      if(o.e&&o.r==null&&tgt!=='') o.r=+tgt;
+      if(o.e) startRest(id);
+      el.remove();
+      queueAdvance(id);
+      save(); maybeAskFinish(); clearTimeout(rt); render();
+    });
+  }
+  m.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.ck, i=+b.dataset.set;
+    if(week===7){ // deload sin esfuerzo: el check confirma o quita las reps
+      const o=slot(id,i);
+      if(o.r==null){ if(b.dataset.tgt!=='') o.r=+b.dataset.tgt; startRest(id); }
+      else o.r=null;
+      save(); clearTimeout(rt); render();
+      return;
+    }
+    showEffPicker(id,i,b.dataset.tgt);
   });
   m.querySelectorAll('[data-sminus],[data-splus]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.sminus||b.dataset.splus, k=id+'-'+week;
