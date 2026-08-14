@@ -240,10 +240,18 @@ td.exn{text-align:left; font-size:12.5px}
 }
 .cfgrow input:focus{outline:2px solid var(--accent); outline-offset:-1px}
 .tiles{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px}
-.tile{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px}
-.tile .tl{font-size:11px; color:var(--mut)}
-.tile .tv{font-size:22px; font-weight:700; margin-top:2px; line-height:1.1}
+.tile{
+  position:relative; background:var(--surface); border:1px solid var(--line);
+  border-radius:16px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.07);
+}
+.tile .ti{
+  position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:999px;
+  background:var(--surface2); color:var(--mut); display:flex; align-items:center; justify-content:center;
+}
+.tile .ti svg{width:16px; height:16px}
+.tile .tv{font-size:24px; font-weight:800; margin-top:2px; line-height:1.1; padding-right:34px}
 .tile .tv small{font-size:12px; font-weight:600; color:var(--mut)}
+.tile .tl{font-size:12px; color:var(--mut); margin-top:3px}
 .tile .td{font-size:11px; font-weight:600; margin-top:2px}
 .tile .td.up{color:var(--ok)} .tile .td.dn{color:var(--bad)} .tile .td.neu{color:var(--mut)}
 .gbar{display:flex; align-items:center; gap:8px; margin-top:7px}
@@ -392,7 +400,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r19'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r20'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -1405,11 +1413,18 @@ function renderProg(){
     if(bwPrev!=null){ const p=((bwNow-bwPrev)/bwPrev*100);
       bwD='<span class="td '+(p<=-0.4&&p>=-0.8?'up':p>0?'dn':'neu')+'">'+(p>0?'+':'')+p.toFixed(1)+'% vs S'+(lw-1)+'</span>';
     } else bwD='<span class="td neu">semana '+lw+'</span>'; }
+  const ICO={
+    ton:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12h16M6 8v8M18 8v8M3 10v4M21 10v4"/></svg>',
+    ser:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+    ses:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4"/><path d="m9 14.5 2 2 4-4"/></svg>',
+    bw:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 16 10 10 14 14 20 8"/><polyline points="15 8 20 8 20 13"/></svg>'
+  };
+  const tile=(ic,val,lbl,delta)=>'<div class="tile"><span class="ti">'+ic+'</span><div class="tv">'+val+'</div><div class="tl">'+lbl+'</div>'+(delta||'')+'</div>';
   let h='<div class="tiles">'
-    +'<div class="tile"><div class="tl">Tonelaje</div><div class="tv">'+fmt(ton)+'<small> kg</small></div>'+tonD+'</div>'
-    +'<div class="tile"><div class="tl">Series duras</div><div class="tv">'+hs+'</div><span class="td neu">semana '+lw+'</span></div>'
-    +'<div class="tile"><div class="tl">Sesiones</div><div class="tv">'+sd[0]+'<small> / '+sd[1]+'</small></div><span class="td '+(sd[0]===sd[1]?'up':'neu')+'">'+(sd[0]===sd[1]?'semana completa ✓':'en curso')+'</span></div>'
-    +'<div class="tile"><div class="tl">Peso corporal</div><div class="tv">'+bwV+'</div>'+bwD+'</div>'
+    +tile(ICO.ton, fmt(ton)+'<small> kg</small>', 'Tonelaje', tonD)
+    +tile(ICO.ser, hs, 'Series duras', '<span class="td neu">semana '+lw+'</span>')
+    +tile(ICO.ses, sd[0]+'<small> / '+sd[1]+'</small>', 'Sesiones', '<span class="td '+(sd[0]===sd[1]?'up':'neu')+'">'+(sd[0]===sd[1]?'semana completa ✓':'en curso')+'</span>')
+    +tile(ICO.bw, bwV, 'Peso corporal', bwD)
     +'</div>';
   // tonelaje
   h+='<div class="card"><h2>Tonelaje por semana (kg levantados)</h2><div class="chartwrap">'
