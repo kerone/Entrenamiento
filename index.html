@@ -384,7 +384,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r16'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r17'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -1097,10 +1097,13 @@ function exChartCard(id){
   [0.25,0.75].forEach(f=>{ const y=pt+(H-pt-pb)*f; s+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'; });
   const xy=[]; pts.forEach((v,i)=>{ if(v!=null) xy.push([X(i+1),Y(v),i+1,v]); });
   if(xy.length>1) s+='<polyline points="'+xy.map(c=>c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  let prevVal=null;
   xy.forEach(c=>{
     const cur=c[2]===week;
     s+='<circle cx="'+c[0].toFixed(1)+'" cy="'+c[1].toFixed(1)+'" r="'+(cur?5:3.5)+'" fill="'+(dataW[c[2]-1]?'var(--accent)':'var(--surface)')+'" stroke="var(--accent)" stroke-width="2"><title>S'+c[2]+': '+c[3]+' kg'+(dataW[c[2]-1]?'':' (previsto)')+'</title></circle>';
-    if(cur) s+='<text x="'+c[0].toFixed(1)+'" y="'+(c[1]-9).toFixed(1)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)">'+c[3]+'</text>';
+    if(prevVal===null||c[3]!==prevVal||cur) // etiqueta el primer punto, cada cambio de peso y la semana actual
+      s+='<text x="'+c[0].toFixed(1)+'" y="'+(c[1]-9).toFixed(1)+'" text-anchor="middle" font-size="10.5" font-weight="'+(cur?'700':'600')+'" fill="'+(cur?'var(--ink)':'var(--mut)')+'">'+c[3]+'</text>';
+    prevVal=c[3];
   });
   for(let w=1;w<=7;w++) s+='<text x="'+X(w).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" fill="'+(w===week?'var(--ink)':'var(--mut)')+'"'+(w===week?' font-weight="700"':'')+'>S'+w+'</text>';
   s+='</svg>';
