@@ -119,6 +119,11 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 .exchart-t{font-size:12.5px; font-weight:700; margin-bottom:4px}
 .exchart svg{width:100%; height:auto; display:block}
 .calpanel{background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:10px}
+#finmodal{position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px}
+#finmodal .fm{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 16px; max-width:340px; width:100%; box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#finmodal h3{margin:0 0 6px; font-size:16px}
+#finmodal .btns{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
+#finmodal .btns .btn{flex:1 1 auto}
 .ex{border-bottom:1px solid var(--line); padding:10px 0 12px}
 .ex:last-child{border-bottom:0}
 .exrow{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
@@ -361,9 +366,9 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r8'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r9'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
-let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}};
+let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}};
 function normReps(){ // formato viejo (números) → {r, e}
   for(const k in S.reps){ if(Array.isArray(S.reps[k]))
     S.reps[k]=S.reps[k].map(x=>x==null||x===''?null:(typeof x==='object'?x:{r:+x,e:null})); }
@@ -422,7 +427,7 @@ async function cloudPush(){
   catch(e){ setSyncMsg('☁ error al subir: '+e.message+' — los datos siguen en este dispositivo'); }
 }
 function applyRemote(rem){
-  S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{}},rem);
+  S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{}},rem);
   normReps(); persist(); render();
 }
 async function cloudPull(){
@@ -797,7 +802,7 @@ function renderHome(){
     try{navigator.clipboard.writeText($('#io').value);}catch(e){} };
   $('#imp').onclick=()=>{ try{
       const d=JSON.parse($('#io').value); if(!d||typeof d!=='object')throw 0;
-      S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{}},d); normReps(); save(); render(); alert('Importado ✓');
+      S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{}},d); normReps(); save(); render(); alert('Importado ✓');
     }catch(e){ alert('Ese texto no es una copia válida.'); } };
   $('#sconn').onclick=()=>{
     SYNC.bin=$('#sbin').value.trim(); SYNC.key=$('#skey').value.trim(); SYNC.hdr='';
@@ -833,6 +838,47 @@ function fullDone(id){ // todas las series prescritas con reps Y esfuerzo (solo 
   const arr=setsOf(id,week), n=prescribedSets(id,week), deload=week===7;
   for(let i=0;i<n;i++){ const s=arr[i]; if(!s||s.r==null||(!deload&&!s.e)) return false; }
   return true;
+}
+// ---- cierre de sesión ----
+let askedFin={};
+function finKey(){ return dayView+'-'+week; }
+function dayTonnage(di,w){
+  let t=0;
+  for(const e of DAYS[di][2]){
+    const arr=setsOf(e[0],w); if(!arr.length) continue;
+    const wf=setWeightFn(e[0],w);
+    arr.forEach((s,i)=>{ if(s&&s.r!=null){ const x=wf(i); if(x) t+=x*s.r; } });
+  }
+  return Math.round(t);
+}
+function maybeAskFinish(){ // al completar el último ejercicio pregunta si cerramos (una sola vez)
+  if(dayView===null) return;
+  const st=dayStats(dayView,week);
+  if(st[0]<st[1]) return;
+  if(!DAYS[dayView][2].every(e=>fullDone(e[0]))) return; // mismo criterio que el auto-avance: reps + esfuerzo
+  const k=finKey();
+  if((S.fin&&S.fin[k])||askedFin[k]) return;
+  askedFin[k]=true;
+  showFinModal();
+}
+function showFinModal(){
+  if(document.getElementById('finmodal')) return;
+  const di=dayView, st=dayStats(di,week);
+  let sets=0; DAYS[di][2].forEach(e=>{ for(const s of setsOf(e[0],week)) if(marked(s)) sets++; });
+  const ton=dayTonnage(di,week);
+  const el=document.createElement('div'); el.id='finmodal';
+  el.innerHTML='<div class="fm"><h3>🎉 ¿Has acabado el entrenamiento?</h3>'
+    +'<div class="hint" style="margin:0">'+st[1]+' ejercicios · '+sets+' series · '+fmt(ton)+' kg movidos en la sesión de hoy.</div>'
+    +'<div class="btns"><button class="btn" id="finyes">Sí, cerrar entrenamiento</button>'
+    +'<button class="btn ghost" id="finno">Seguir entrenando</button></div></div>';
+  document.body.appendChild(el);
+  el.onclick=e=>{ if(e.target===el) el.remove(); };
+  el.querySelector('#finno').onclick=()=>el.remove();
+  el.querySelector('#finyes').onclick=()=>{
+    (S.fin||(S.fin={}))[finKey()]=Date.now();
+    save(); stopRest(); clearTimeout(advT); el.remove();
+    dayView=null; openEx=null; window.scrollTo(0,0); clearTimeout(rt); render();
+  };
 }
 function queueAdvance(id){ // al completar, pasa solo al siguiente pendiente (1,6 s de margen)
   clearTimeout(advT);
@@ -934,8 +980,9 @@ function exBody(e){
   let nextBtn='';
   if(exDone(id,week)){
     const nx=dayView!==null?nextPending(dayView,id):null;
-    nextBtn = nx ? '<button class="btn" data-next="'+id+'" style="margin-top:12px;width:100%">✓ Hecho — siguiente: '+esc(EX[nx][1])+'</button>'
-      : '<div class="hint" style="margin-top:10px">🎉 Todos los ejercicios del día completados.</div>';
+    if(nx) nextBtn='<button class="btn" data-next="'+id+'" style="margin-top:12px;width:100%">✓ Hecho — siguiente: '+esc(EX[nx][1])+'</button>';
+    else if(dayView!==null&&S.fin&&S.fin[dayView+'-'+week]) nextBtn='<div class="hint" style="margin-top:10px">🏁 Entrenamiento cerrado.</div>';
+    else nextBtn='<button class="btn" data-fin="1" style="margin-top:12px;width:100%">🏁 Terminar entrenamiento</button>';
   }
   return '<div class="exrow">'
     +'<button class="wchipbig'+(over?' over':'')+'" data-cal="'+id+'" title="Calibrar o ajustar el peso">'+(base===null?'¿kg? · calibrar':base+' kg · ajustar')+'</button>'
@@ -1015,14 +1062,14 @@ function wireExercise(m){
     o.r=el.value===''?null:+el.value;
     if(o.r!=null) startRest(el.dataset.ex);
     queueAdvance(el.dataset.ex);
-    save(); scheduleRender(); // diferido: no romper el tap que sigue al teclado
+    save(); maybeAskFinish(); scheduleRender(); // diferido: no romper el tap que sigue al teclado
   });
   m.querySelectorAll('[data-eff]').forEach(b=>b.onclick=()=>{
     const o=slot(b.dataset.ex,+b.dataset.set);
     o.e=(o.e===b.dataset.eff)?null:b.dataset.eff;
     if(o.e) startRest(b.dataset.ex);
     queueAdvance(b.dataset.ex);
-    save(); clearTimeout(rt); render();
+    save(); maybeAskFinish(); clearTimeout(rt); render();
   });
   m.querySelectorAll('[data-sminus],[data-splus]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.sminus||b.dataset.splus, k=id+'-'+week;
@@ -1039,6 +1086,7 @@ function wireExercise(m){
     const nx=dayView!==null?nextPending(dayView,b.dataset.next):null;
     if(nx) gotoEx(nx,true);
   });
+  m.querySelectorAll('[data-fin]').forEach(b=>b.onclick=()=>showFinModal());
   m.querySelectorAll('[data-ckg],[data-crep]').forEach(el=>el.onchange=()=>{
     const id=el.dataset.ckg||el.dataset.crep;
     const kg=m.querySelector('[data-ckg="'+id+'"]').value;
