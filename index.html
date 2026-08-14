@@ -384,9 +384,9 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r15'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r16'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
-let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}};
+let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
   for(const k in S.reps){ if(Array.isArray(S.reps[k]))
     S.reps[k]=S.reps[k].map(x=>x==null||x===''?null:(typeof x==='object'?x:{r:+x,e:null})); }
@@ -402,7 +402,7 @@ SEED._ts=1786700822407;
 // sesiones ya realizadas con el HTML original → cerradas (L/M/X/V/S de la S1, L/M/X de la S2)
 SEED.fin={'0-1':SEED._ts,'1-1':SEED._ts,'2-1':SEED._ts,'4-1':SEED._ts,'5-1':SEED._ts,'0-2':SEED._ts,'1-2':SEED._ts,'2-2':SEED._ts};
 if((+S._ts||0)<SEED._ts){
-  S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{}},SEED);
+  S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{},dur:{}},SEED);
   normReps(); try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
 }
 function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
@@ -457,7 +457,7 @@ async function cloudPush(){
   catch(e){ setSyncMsg('☁ error al subir: '+e.message+' — los datos siguen en este dispositivo'); }
 }
 function applyRemote(rem){
-  S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{}},rem);
+  S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{},dur:{}},rem);
   normReps(); persist(); render();
 }
 async function cloudPull(){
@@ -812,7 +812,7 @@ function renderHome(){
         +'<div class="dc-top"><span class="dc-day">'+d[0]+'</span>'+(today?'<span class="dc-today">HOY</span>':'')
         +'<span class="dc-state'+(full?' ok':some?' part':'')+'">'+stTxt+'</span></div>'
         +'<div class="dc-title">'+esc(d[1])+'</div>'
-        +'<div class="dc-meta">'+d[2].length+' ejercicios · '+nsets+' series'+(deload?' · deload':'')+'</div>'
+        +'<div class="dc-meta">'+d[2].length+' ejercicios · '+nsets+' series · ≈'+fmtDur(estSession(di,week,false))+(deload?' · deload':'')+'</div>'
         +'<div class="dc-prog"><i style="width:'+(full?100:Math.round(st[0]/st[1]*100))+'%"></i></div></button>';
     }
   });
@@ -849,7 +849,7 @@ function renderHome(){
     try{navigator.clipboard.writeText($('#io').value);}catch(e){} };
   $('#imp').onclick=()=>{ try{
       const d=JSON.parse($('#io').value); if(!d||typeof d!=='object')throw 0;
-      S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{}},d); normReps(); save(); render(); alert('Importado ✓');
+      S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{},fin:{},dur:{}},d); normReps(); save(); render(); alert('Importado ✓');
     }catch(e){ alert('Ese texto no es una copia válida.'); } };
   $('#sconn').onclick=()=>{
     SYNC.bin=$('#sbin').value.trim(); SYNC.key=$('#skey').value.trim(); SYNC.hdr='';
@@ -885,6 +885,42 @@ function fullDone(id){ // todas las series prescritas con reps Y esfuerzo (solo 
   const arr=setsOf(id,week), n=prescribedSets(id,week), deload=week===7;
   for(let i=0;i<n;i++){ const s=arr[i]; if(!s||s.r==null||(!deload&&!s.e)) return false; }
   return true;
+}
+// ---- duración: media de ejecución por serie y estimación de sesión ----
+// Al marcar dos series seguidas del mismo ejercicio, el intervalo entre marcas
+// menos el descanso estipulado ≈ lo que tardas en ejecutar la serie. Se descartan
+// muestras absurdas (móvil abandonado, interrupciones) y se guarda una media móvil.
+let lastMark=null;
+function noteSetDone(id,i){
+  const now=Date.now();
+  if(lastMark&&lastMark.id===id){
+    const sample=Math.round((now-lastMark.t)/1000)-restSecs(EX[id][8]);
+    if(sample>=10&&sample<=240){
+      const d=(S.dur||(S.dur={}))[id]||(S.dur[id]={n:0,s:0});
+      d.n++; d.s+=sample;
+      if(d.n>40){ d.s=d.s*40/d.n; d.n=40; } // media móvil: lo reciente pesa más
+    }
+  }
+  lastMark={id:id,set:i,t:now};
+}
+function exExec(id){ const d=S.dur&&S.dur[id]; return d&&d.n>0 ? d.s/d.n : 45; } // sin datos: 45 s/serie
+function estSession(di,w,onlyPending){ // ejecución media + descanso estipulado por cada serie (que quede)
+  let tot=0;
+  for(const e of DAYS[di][2]){
+    const id=e[0], n=prescribedSets(id,w);
+    let rem=n;
+    if(onlyPending){
+      const arr=setsOf(id,w); let m=0;
+      for(let i=0;i<n;i++) if(arr[i]&&marked(arr[i])) m++;
+      rem=n-m;
+    }
+    if(rem>0) tot+=rem*(exExec(id)+restSecs(e[8]));
+  }
+  return tot;
+}
+function fmtDur(secs){
+  const m=Math.round(secs/60);
+  return m>=60 ? Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min' : m+' min';
 }
 // ---- cierre de sesión ----
 let askedFin={};
@@ -935,10 +971,12 @@ function queueAdvance(id){ // al completar, pasa solo al siguiente pendiente (1,
     if(nx) gotoEx(nx,true);
   },1600);
 }
-function updateDayHud(){ // refresca contador, barra y puntos sin re-render
+function updateDayHud(){ // refresca contador, barra, puntos y tiempo restante sin re-render
   if(dayView===null) return;
   const d=DAYS[dayView], st=dayStats(dayView,week);
-  const c=document.getElementById('dcount'); if(c) c.textContent=st[0]+'/'+st[1]+' ejercicios';
+  const rem=estSession(dayView,week,true);
+  const c=document.getElementById('dcount');
+  if(c) c.textContent=st[0]+'/'+st[1]+' ejercicios'+(rem>0?' · quedan ≈'+fmtDur(rem):'');
   const pr=document.querySelector('.dc-prog.day i'); if(pr) pr.style.width=Math.round(st[0]/st[1]*100)+'%';
   document.querySelectorAll('#pdots .pd').forEach((b,i)=>{
     const ex=d[2][i]; if(!ex) return;
@@ -1107,8 +1145,9 @@ function wireExercise(m){
     return arr[i]||(arr[i]={r:null,e:null});
   }
   m.querySelectorAll('.setrow input').forEach(el=>el.onchange=()=>{
-    const o=slot(el.dataset.ex,+el.dataset.set);
+    const o=slot(el.dataset.ex,+el.dataset.set), was=marked(o);
     o.r=el.value===''?null:+el.value;
+    if(!was&&marked(o)) noteSetDone(el.dataset.ex,+el.dataset.set);
     if(o.r!=null) startRest(el.dataset.ex);
     queueAdvance(el.dataset.ex);
     save(); maybeAskFinish(); scheduleRender(); // diferido: no romper el tap que sigue al teclado
@@ -1125,9 +1164,10 @@ function wireExercise(m){
     el.onclick=e=>{ if(e.target===el) el.remove(); };
     el.querySelector('#effx').onclick=()=>el.remove();
     el.querySelectorAll('.effopt').forEach(ob=>ob.onclick=()=>{
-      const o=slot(id,i), k=ob.dataset.k;
+      const o=slot(id,i), k=ob.dataset.k, was=marked(o);
       o.e=(o.e===k)?null:k; // repetir la misma opción la desmarca
       if(o.e&&o.r==null&&tgt!=='') o.r=+tgt;
+      if(!was&&marked(o)) noteSetDone(id,i);
       if(o.e) startRest(id);
       el.remove();
       queueAdvance(id);
@@ -1138,7 +1178,7 @@ function wireExercise(m){
     const id=b.dataset.ck, i=+b.dataset.set;
     if(week===7){ // deload sin esfuerzo: el check confirma o quita las reps
       const o=slot(id,i);
-      if(o.r==null){ if(b.dataset.tgt!=='') o.r=+b.dataset.tgt; startRest(id); }
+      if(o.r==null){ if(b.dataset.tgt!==''){ o.r=+b.dataset.tgt; noteSetDone(id,i); } startRest(id); }
       else o.r=null;
       save(); clearTimeout(rt); render();
       return;
