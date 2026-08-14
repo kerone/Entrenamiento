@@ -151,6 +151,7 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
   font-size:12.5px; color:var(--mut); font-variant-numeric:tabular-nums; font-weight:600;
 }
 .setlbl .tgt{color:var(--accent)}
+.setlbl .prv{color:var(--mut); font-weight:600; font-size:11px}
 .setrow input{
   flex:0 0 54px; width:54px; height:42px; text-align:center; font-size:16px; font-weight:600;
   font-variant-numeric:tabular-nums; color:var(--ink);
@@ -366,7 +367,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r10'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r11'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -923,7 +924,7 @@ function renderDay(){
     +'<div class="dc-prog day"><i style="width:'+Math.round(st[0]/st[1]*100)+'%"></i></div>'
     +'<div class="pagerdots" id="pdots">'+d[2].map((e,i)=>'<button class="pd" data-goex="'+e[0]+'">'+(i+1)+'</button>').join('')+'</div>';
   if(deload) h+='<div class="hint" style="margin:0 0 8px">🔸 Deload: mitad de series, peso final de la semana 6. Nada de acercarse al fallo.</div>';
-  h+='<div class="hint" style="margin:0 0 8px">Desliza ↔ o toca un número para cambiar de ejercicio — el orden es libre. Cuando todas las series tengan reps y esfuerzo (F/E/L/X) marcados, pasa solo al siguiente pendiente, incluidos los saltados; también puedes usar el botón «Hecho — siguiente».</div>';
+  h+='<div class="hint" style="margin:0 0 8px">Desliza ↔ o toca un número para cambiar de ejercicio — el orden es libre. Toca <b>F/E/L/X</b> tras cada serie: las reps se rellenan solas con el objetivo azul (corrígelas si hiciste otras) y «ant» te recuerda las de la semana pasada. Con todas las series marcadas pasa solo al siguiente pendiente.</div>';
   h+='<div class="pager" id="pager">'+d[2].map(e=>'<div class="expage"><div class="excard pagecard">'+exPage(e)+'</div></div>').join('')+'</div>';
   m.innerHTML=h;
   $('#backhome').onclick=()=>{ dayView=null; openEx=null; clearTimeout(advT); window.scrollTo(0,0); clearTimeout(rt); render(); };
@@ -974,16 +975,19 @@ function exBody(e){
     else presnote='<div class="presnote hold">Rampa en pausa: '+r+'</div>';
   }
   let rows='';
+  const prevArr = week>1 ? setsOf(id,week-1) : [];
   for(let i=0;i<total;i++){
     const s=arr[i];
     const wgt = base===null?null : deload?base : (i<arr.length?wk.per[i]:wk.cur);
     const tgt = tg[i];
     const f = s&&s.e;
+    const ps = prevArr[i];
+    const prev = (ps&&ps.r!=null) ? ' <span class="prv" title="Semana pasada: '+ps.r+' reps'+(ps.e?' ('+ps.e+')':'')+'">ant '+ps.r+(ps.e||'')+'</span>' : '';
     rows+='<div class="setrow'+(i>=eng?' extra':'')+'">'
-      +'<span class="setlbl">S'+(i+1)+' · '+(wgt===null?'—':wgt+' kg')+(tgt!==null?' <b class="tgt">→'+tgt+'</b>':'')+'</span>'
+      +'<span class="setlbl">S'+(i+1)+' · '+(wgt===null?'—':wgt+' kg')+(tgt!==null?' <b class="tgt">→'+tgt+'</b>':'')+prev+'</span>'
       +'<input type="number" inputmode="numeric" min="0" max="100" placeholder="'+(tgt!==null?tgt:'reps')+'" value="'+(s&&s.r!=null?s.r:'')+'" data-ex="'+id+'" data-set="'+i+'">'
       +(deload?'':'<span class="eff">'+['F','E','L','X'].map(k=>
-        '<button class="s'+k+(f===k?' on':'')+'" data-eff="'+k+'" data-ex="'+id+'" data-set="'+i+'" title="'+EFFTITLE[k]+'">'+k+'</button>').join('')+'</span>')
+        '<button class="s'+k+(f===k?' on':'')+'" data-eff="'+k+'" data-ex="'+id+'" data-set="'+i+'" data-tgt="'+(tgt!==null?tgt:'')+'" title="'+EFFTITLE[k]+'">'+k+'</button>').join('')+'</span>')
       +'</div>';
     if(!deload && i<arr.length && wk.ev[i]){
       const after=(i+1<wk.per.length)?wk.per[i+1]:wk.cur;
@@ -1080,6 +1084,7 @@ function wireExercise(m){
   m.querySelectorAll('[data-eff]').forEach(b=>b.onclick=()=>{
     const o=slot(b.dataset.ex,+b.dataset.set);
     o.e=(o.e===b.dataset.eff)?null:b.dataset.eff;
+    if(o.e&&o.r==null&&b.dataset.tgt!=='') o.r=+b.dataset.tgt; // marcar esfuerzo confirma las reps objetivo
     if(o.e) startRest(b.dataset.ex);
     queueAdvance(b.dataset.ex);
     save(); maybeAskFinish(); clearTimeout(rt); render();
