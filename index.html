@@ -88,18 +88,25 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 .dbt{min-width:0}
 .dbt b{display:block; font-size:15px}
 .dbt span{font-size:12px; color:var(--mut)}
-.excard{background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; scroll-margin-top:64px}
-.excard.open{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset}
-.excard-head{display:flex; align-items:center; gap:10px; width:100%; background:none; border:0; color:var(--ink); font:inherit; text-align:left; padding:11px 12px; cursor:pointer}
+.excard{background:var(--surface); border:1px solid var(--line); border-radius:12px}
+.pagecard{padding:12px}
+.pghead{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.pgname{font-size:15.5px; font-weight:700; line-height:1.25}
+.pgsub{font-size:12px; color:var(--mut); margin-top:1px}
 .stx{flex:0 0 36px; height:36px; border-radius:999px; background:var(--surface2); color:var(--mut); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; font-variant-numeric:tabular-nums}
 .stx.part{background:var(--info-bg); color:var(--info)}
-.excard.done .stx{background:var(--ok); color:var(--ok-ink); font-size:15px}
-.eh-name{flex:1; min-width:0; font-weight:600; font-size:14px; line-height:1.25}
-.eh-sub{display:block; font-weight:400; font-size:11.5px; color:var(--mut); margin-top:2px}
-.eh-kg{font-size:13px; font-weight:700; color:var(--accent); white-space:nowrap; font-variant-numeric:tabular-nums}
-.chev{color:var(--mut); font-size:11px; transition:transform .15s}
-.excard.open .chev{transform:rotate(90deg)}
-.exbody{padding:10px 12px 12px; border-top:1px solid var(--line)}
+.stx.done{background:var(--ok); color:var(--ok-ink); font-size:15px}
+.pager{display:flex; align-items:flex-start; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; margin:0 -12px}
+.pager::-webkit-scrollbar{display:none}
+.expage{flex:0 0 100%; min-width:0; scroll-snap-align:start; scroll-snap-stop:always; padding:0 12px 4px; box-sizing:border-box}
+.pagerdots{display:flex; gap:6px; margin:0 0 10px; flex-wrap:wrap}
+.pd{width:30px; height:30px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--mut); font-size:12px; font-weight:800; cursor:pointer; font-variant-numeric:tabular-nums}
+.pd.done{background:var(--ok); border-color:var(--ok); color:var(--ok-ink)}
+.pd.cur{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); color:var(--accent)}
+.pd.done.cur{color:var(--ok-ink)}
+.exchart{margin-top:12px; border-top:1px solid var(--line); padding-top:8px}
+.exchart-t{font-size:12.5px; font-weight:700; margin-bottom:4px}
+.exchart svg{width:100%; height:auto; display:block}
 .calpanel{background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:10px}
 .ex{border-bottom:1px solid var(--line); padding:10px 0 12px}
 .ex:last-child{border-bottom:0}
@@ -250,7 +257,7 @@ textarea{
   width:34px; height:34px; font-size:14px; cursor:pointer; flex:0 0 auto;
 }
 #resttimer.done{background:var(--ok); color:var(--ok-ink)}
-@media (prefers-reduced-motion: reduce){ .chev{transition:none} }
+@media (prefers-reduced-motion: reduce){ .pager{scroll-behavior:auto} }
 </style>
 
 <header>
@@ -262,7 +269,6 @@ textarea{
 <div id="resttimer" hidden></div>
 <nav>
   <button id="nav-train" class="sel"><span class="ic">🏋️</span>Entreno</button>
-  <button id="nav-cfg"><span class="ic">⚙️</span>Ejercicios</button>
   <button id="nav-prog"><span class="ic">📈</span>Progreso</button>
 </nav>
 
@@ -499,7 +505,7 @@ function currentWeek(){
 }
 
 let tab='train', week=currentWeek();
-let dayView=null, openEx=null, calEx=null, scrollEx=null; // navegación: portada → día → ejercicio abierto
+let dayView=null, openEx=null, calEx=null, advT=null; // navegación: portada → día → ejercicio actual
 const todayIdx=(()=>{const g=new Date().getDay();return g===0?6:g-1;})();
 let rt=null;
 function scheduleRender(){ clearTimeout(rt); rt=setTimeout(render,180); } // deja aterrizar el tap que provocó el blur
@@ -582,16 +588,10 @@ function render(){
     return;
   }
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('sel'));
-  $('#nav-'+(tab==='train'?'train':tab==='cfg'?'cfg':'prog')).classList.add('sel');
+  $('#nav-'+(tab==='train'?'train':'prog')).classList.add('sel');
   $('#weekbar').style.display = (tab==='train'&&dayView===null)?'flex':'none';
   if(tab==='train'){ if(dayView===null){ renderWeekbar(); renderHome(); } else renderDay(); }
-  else if(tab==='cfg') renderCfg();
   else renderProg();
-  if(scrollEx){
-    const el=document.querySelector('[data-exopen="'+scrollEx+'"]');
-    if(el) el.closest('.excard').scrollIntoView({behavior:'smooth',block:'start'});
-    scrollEx=null;
-  }
 }
 
 function renderWeekbar(){
@@ -617,13 +617,14 @@ function firstPending(di){
   for(const e of DAYS[di][2]) if(!exDone(e[0],week)) return e[0];
   return null;
 }
-function nextPending(di,afterId){
+function nextPending(di,afterId){ // siguiente pendiente en orden, volviendo a los saltados
   const list=DAYS[di][2], i0=list.findIndex(x=>x[0]===afterId);
   for(let k=1;k<=list.length;k++){ const e=list[(i0+k)%list.length]; if(!exDone(e[0],week)) return e[0]; }
   return null;
 }
 function renderHome(){
   const m=$('#main'); const deload=week===7;
+  m.onpointerdown=null;
   let h='<div class="bw">Peso corporal lunes (kg): <input type="number" inputmode="decimal" step="0.1" id="bwin" value="'+(S.bw[week]??'')+'"><span id="bwnote"></span></div>';
   if(!deload){
     const c=S.chk[week]||{};
@@ -652,10 +653,13 @@ function renderHome(){
         +'<div class="dc-prog"><i style="width:'+Math.round(st[0]/st[1]*100)+'%"></i></div></button>';
     }
   });
+  h+='<details class="howto" style="margin-top:14px"><summary>Copia de seguridad</summary><div style="margin-top:6px">'
+    +'<div class="hint" style="margin-top:0">Los datos viven en este navegador. Exporta de vez en cuando por si limpias datos o cambias de móvil.</div>'
+    +'<div style="display:flex;gap:8px;margin:8px 0"><button class="btn" id="exp">Exportar</button><button class="btn ghost" id="imp">Importar</button></div>'
+    +'<textarea id="io" placeholder="El texto exportado aparece aquí; pégalo aquí para importar."></textarea></div></details>';
   m.innerHTML=h;
   m.querySelectorAll('[data-goday]').forEach(b=>b.onclick=()=>{
-    dayView=+b.dataset.goday; calEx=null;
-    openEx=firstPending(dayView);
+    dayView=+b.dataset.goday; openEx=null; calEx=null;
     window.scrollTo(0,0); clearTimeout(rt); render();
   });
   m.querySelectorAll('[data-chk]').forEach(b=>b.onclick=()=>{
@@ -670,42 +674,80 @@ function renderHome(){
     const pct=((now-prev)/prev*100).toFixed(1);
     $('#bwnote').textContent=pct+'% vs sem. '+(week-1)+(pct<=-0.8?' · rápido, +150 kcal':pct<=-0.4?' · ritmo bueno':pct<0?' · lento':' · sin pérdida');
   }
+  $('#exp').onclick=()=>{ $('#io').value=JSON.stringify(S); $('#io').select();
+    try{navigator.clipboard.writeText($('#io').value);}catch(e){} };
+  $('#imp').onclick=()=>{ try{
+      const d=JSON.parse($('#io').value); if(!d||typeof d!=='object')throw 0;
+      S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{}},d); normReps(); save(); render(); alert('Importado ✓');
+    }catch(e){ alert('Ese texto no es una copia válida.'); } };
 }
 
-// ---- vista de día: proceso guiado, orden libre ----
+// ---- vista de día: un ejercicio a pantalla completa, desliza ↔ para cambiar ----
+function exIdx(id){ return dayView===null?-1:DAYS[dayView][2].findIndex(x=>x[0]===id); }
+function gotoEx(id,smooth){
+  openEx=id; calEx=null;
+  const pg=document.getElementById('pager');
+  if(pg){ const i=Math.max(0,exIdx(id)); pg.scrollTo({left:i*pg.clientWidth, behavior:smooth?'smooth':'auto'}); }
+  updateDayHud();
+}
+function fullDone(id){ // todas las series prescritas con reps apuntadas
+  const arr=setsOf(id,week), n=prescribedSets(id,week);
+  for(let i=0;i<n;i++) if(!arr[i]||arr[i].r==null) return false;
+  return true;
+}
+function queueAdvance(id){ // al completar, pasa solo al siguiente pendiente (1,6 s de margen)
+  clearTimeout(advT);
+  advT=setTimeout(()=>{
+    if(dayView===null||openEx!==id||!fullDone(id)) return;
+    const nx=nextPending(dayView,id);
+    if(nx) gotoEx(nx,true);
+  },1600);
+}
+function updateDayHud(){ // refresca contador, barra y puntos sin re-render
+  if(dayView===null) return;
+  const d=DAYS[dayView], st=dayStats(dayView,week);
+  const c=document.getElementById('dcount'); if(c) c.textContent=st[0]+'/'+st[1]+' ejercicios';
+  const pr=document.querySelector('.dc-prog.day i'); if(pr) pr.style.width=Math.round(st[0]/st[1]*100)+'%';
+  document.querySelectorAll('#pdots .pd').forEach((b,i)=>{
+    const id=d[2][i][0], done=exDone(id,week);
+    b.className='pd'+(done?' done':'')+(openEx===id?' cur':'');
+    b.textContent=done?'✓':(i+1);
+  });
+}
 function renderDay(){
   const di=dayView, d=DAYS[di], m=$('#main'), deload=week===7;
+  if(openEx===null||exIdx(openEx)<0) openEx=firstPending(di)||d[2][0][0];
   const st=dayStats(di,week);
   let h='<div class="daybar"><button class="backbtn" id="backhome" title="Volver a la semana">←</button>'
     +'<div class="dbt"><b>'+d[0]+' · '+esc(d[1])+'</b>'
-    +'<span>'+(deload?'S7 · Deload':'Semana '+week)+' · '+span(week)+' · '+st[0]+'/'+st[1]+' ejercicios</span></div></div>'
-    +'<div class="dc-prog day"><i style="width:'+Math.round(st[0]/st[1]*100)+'%"></i></div>';
-  if(deload) h+='<div class="hint" style="margin:0 0 10px">🔸 Deload: mitad de series, peso final de la semana 6. Nada de acercarse al fallo.</div>';
-  h+='<div class="hint" style="margin:0 0 10px">Toca un ejercicio para abrirlo — el orden es libre: si una máquina está ocupada, salta a otro. Al completarlo te propone el siguiente pendiente.</div>';
-  d[2].forEach(e=>{
-    const id=e[0], open=openEx===id, done=exDone(id,week);
-    const pres=prescribedSets(id,week);
-    let nm=0; for(const s of setsOf(id,week)) if(marked(s)) nm++;
-    const base=weight(id,week);
-    h+='<section class="excard'+(open?' open':'')+(done?' done':'')+'">'
-      +'<button class="excard-head" data-exopen="'+id+'">'
-      +'<span class="stx'+(!done&&nm>0?' part':'')+'">'+(done?'✓':nm+'/'+pres)+'</span>'
-      +'<span class="eh-name">'+esc(e[1])+(e[6]?' <span class="rampa">RAMPA</span>':'')
-      +'<span class="eh-sub">'+pres+'×'+e[3]+'-'+e[4]+' · descansa '+e[8]+'</span></span>'
-      +'<span class="eh-kg">'+(base===null?'¿kg?':base+' kg')+'</span>'
-      +'<span class="chev">▶</span></button>'
-      +(open?'<div class="exbody">'+exBody(e)+'</div>':'')
-      +'</section>';
-  });
+    +'<span>'+(deload?'S7 · Deload':'Semana '+week)+' · '+span(week)+' · <span id="dcount">'+st[0]+'/'+st[1]+' ejercicios</span></span></div></div>'
+    +'<div class="dc-prog day"><i style="width:'+Math.round(st[0]/st[1]*100)+'%"></i></div>'
+    +'<div class="pagerdots" id="pdots">'+d[2].map((e,i)=>'<button class="pd" data-goex="'+e[0]+'">'+(i+1)+'</button>').join('')+'</div>';
+  if(deload) h+='<div class="hint" style="margin:0 0 8px">🔸 Deload: mitad de series, peso final de la semana 6. Nada de acercarse al fallo.</div>';
+  h+='<div class="hint" style="margin:0 0 8px">Desliza ↔ o toca un número para cambiar de ejercicio — el orden es libre. Al apuntar todas las series pasa solo al siguiente pendiente (incluidos los saltados).</div>';
+  h+='<div class="pager" id="pager">'+d[2].map(e=>'<div class="expage"><div class="excard pagecard">'+exPage(e)+'</div></div>').join('')+'</div>';
   m.innerHTML=h;
-  $('#backhome').onclick=()=>{ dayView=null; window.scrollTo(0,0); clearTimeout(rt); render(); };
-  m.querySelectorAll('[data-exopen]').forEach(b=>b.onclick=()=>{
-    const id=b.dataset.exopen;
-    openEx=(openEx===id)?null:id; calEx=null;
-    if(openEx) scrollEx=openEx;
-    clearTimeout(rt); render();
-  });
+  $('#backhome').onclick=()=>{ dayView=null; openEx=null; clearTimeout(advT); window.scrollTo(0,0); clearTimeout(rt); render(); };
+  m.querySelectorAll('[data-goex]').forEach(b=>b.onclick=()=>gotoEx(b.dataset.goex,true));
+  const pg=$('#pager');
+  pg.scrollLeft=Math.max(0,exIdx(openEx))*pg.clientWidth;
+  let sT=null;
+  pg.onscroll=()=>{ clearTimeout(sT); sT=setTimeout(()=>{
+    const i=Math.max(0,Math.min(d[2].length-1,Math.round(pg.scrollLeft/pg.clientWidth)));
+    if(openEx!==d[2][i][0]){ openEx=d[2][i][0]; updateDayHud(); }
+  },90); };
+  m.onpointerdown=()=>clearTimeout(advT); // interacción manual cancela el auto-avance
   wireExercise(m);
+  updateDayHud();
+}
+function exPage(e){
+  const id=e[0], done=exDone(id,week);
+  const pres=prescribedSets(id,week);
+  let nm=0; for(const s of setsOf(id,week)) if(marked(s)) nm++;
+  return '<div class="pghead"><span class="stx'+(done?' done':nm>0?' part':'')+'">'+(done?'✓':nm+'/'+pres)+'</span>'
+    +'<div class="pgt"><div class="pgname">'+esc(e[1])+(e[6]?' <span class="rampa">RAMPA</span>':'')+'</div>'
+    +'<div class="pgsub">'+pres+'×'+e[3]+'-'+e[4]+' · descansa '+e[8]+'</div></div></div>'
+    +exBody(e);
 }
 function exBody(e){
   const id=e[0], deload=week===7;
@@ -762,7 +804,34 @@ function exBody(e){
     +' · '+esc(e[7])+'</div>'
     +presnote
     +(calEx===id?calPanel(e):'')
-    +rows+nextBtn;
+    +rows+nextBtn+exChartCard(id);
+}
+// gráfica histórica del ejercicio: peso de trabajo por semana
+function exChartCard(id){
+  const pts=[], dataW=[];
+  let any=false;
+  for(let w=1;w<=7;w++){ const v=weight(id,w); pts.push(v); dataW.push(setsOf(id,w).some(marked)); if(v!=null) any=true; }
+  if(!any) return '';
+  const W=320,H=112,pl=12,pr=30,pt=16,pb=18;
+  const vals=pts.filter(v=>v!=null);
+  let min=Math.min(...vals), max=Math.max(...vals);
+  if(max-min<1){ max+=1; min=Math.max(0,min-1); }
+  const X=w=>pl+(W-pl-pr)*(w-1)/6, Y=v=>pt+(H-pt-pb)*(1-(v-min)/(max-min));
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
+  [0.25,0.75].forEach(f=>{ const y=pt+(H-pt-pb)*f; s+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'; });
+  const xy=[]; pts.forEach((v,i)=>{ if(v!=null) xy.push([X(i+1),Y(v),i+1,v]); });
+  if(xy.length>1) s+='<polyline points="'+xy.map(c=>c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  xy.forEach(c=>{
+    const cur=c[2]===week;
+    s+='<circle cx="'+c[0].toFixed(1)+'" cy="'+c[1].toFixed(1)+'" r="'+(cur?5:3.5)+'" fill="'+(dataW[c[2]-1]?'var(--accent)':'var(--surface)')+'" stroke="var(--accent)" stroke-width="2"><title>S'+c[2]+': '+c[3]+' kg'+(dataW[c[2]-1]?'':' (previsto)')+'</title></circle>';
+    if(cur) s+='<text x="'+c[0].toFixed(1)+'" y="'+(c[1]-9).toFixed(1)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)">'+c[3]+'</text>';
+  });
+  for(let w=1;w<=7;w++) s+='<text x="'+X(w).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" fill="'+(w===week?'var(--ink)':'var(--mut)')+'"'+(w===week?' font-weight="700"':'')+'>S'+w+'</text>';
+  s+='</svg>';
+  const rm=NOCALC.has(id)?null:rmAt(id,week);
+  return '<div class="exchart"><div class="exchart-t">Progresión de peso</div>'+s
+    +'<div class="hint" style="margin:4px 0 0">Punto relleno = semana con series apuntadas · hueco = previsión del plan.'
+    +(rm!==null?' 1RM estimada: <b>'+Math.round(rm)+' kg</b>.':'')+'</div></div>';
 }
 // panel de calibración dentro del propio ejercicio
 function calPanel(e){
@@ -775,16 +844,21 @@ function calPanel(e){
       +'<span style="font-size:16px;color:var(--mut)">×</span>'
       +'<label>reps<br><input type="number" inputmode="numeric" data-crep="'+id+'" value="'+c[1]+'"></label>'
       +'<span class="hint" style="flex:1 1 120px;margin:0">'+(r?('1RM ~'+r[0]+' kg → trabajo con <b>'+r[1]+' kg</b>'):'estimación al rellenar')+'</span>'
+      +'</div>'
+      +'<div class="cfgrow">'
+      +'<label>Peso esta semana<br><input type="number" inputmode="decimal" step="0.5" data-ovr="'+id+'" value="'+(S.over[k]??'')+'" placeholder="'+(weight(id,week)??'—')+'"></label>'
+      +'<label>Inicial (S1)<br><input type="number" inputmode="decimal" step="0.5" data-base="'+id+'" value="'+(S.base[id]??'')+'"></label>'
+      +'<label>Incremento<br><input type="number" inputmode="decimal" step="0.5" data-inc="'+id+'" value="'+(S.inc[id]??e[5])+'"></label>'
       +'</div>';
   }else{
     p+='<div class="hint" style="margin:0 0 4px"><b>Calibrar:</b> ejercicio corporal/lastre — apunta el lastre base directamente (0 = sin lastre).</div>'
-      +'<div class="cfgrow"><label>Lastre base (kg)<br><input type="number" inputmode="decimal" step="0.5" data-base="'+id+'" value="'+(S.base[id]??'')+'"></label></div>';
+      +'<div class="cfgrow">'
+      +'<label>Lastre base (kg)<br><input type="number" inputmode="decimal" step="0.5" data-base="'+id+'" value="'+(S.base[id]??'')+'"></label>'
+      +'<label>Peso esta semana<br><input type="number" inputmode="decimal" step="0.5" data-ovr="'+id+'" value="'+(S.over[k]??'')+'" placeholder="'+(weight(id,week)??'—')+'"></label>'
+      +'<label>Incremento<br><input type="number" inputmode="decimal" step="0.5" data-inc="'+id+'" value="'+(S.inc[id]??e[5])+'"></label>'
+      +'</div>';
   }
-  p+='<div class="cfgrow">'
-    +'<label>Peso esta semana<br><input type="number" inputmode="decimal" step="0.5" data-ovr="'+id+'" value="'+(S.over[k]??'')+'" placeholder="'+(weight(id,week)??'—')+'"></label>'
-    +'<label>Incremento<br><input type="number" inputmode="decimal" step="0.5" data-inc="'+id+'" value="'+(S.inc[id]??e[5])+'"></label>'
-    +'</div>'
-    +'<div class="hint" style="margin:4px 0 0">«Peso esta semana» fuerza solo esta semana (vacío = usar el calculado). Incremento = salto cuando toca subir de peso.</div>'
+  p+='<div class="hint" style="margin:4px 0 0">«Peso esta semana» fuerza solo esta semana (vacío = usar el calculado). Incremento = salto cuando toca subir de peso.</div>'
     +'</div>';
   return p;
 }
@@ -798,12 +872,14 @@ function wireExercise(m){
     const o=slot(el.dataset.ex,+el.dataset.set);
     o.r=el.value===''?null:+el.value;
     if(o.r!=null) startRest(el.dataset.ex);
+    queueAdvance(el.dataset.ex);
     save(); scheduleRender(); // diferido: no romper el tap que sigue al teclado
   });
   m.querySelectorAll('[data-eff]').forEach(b=>b.onclick=()=>{
     const o=slot(b.dataset.ex,+b.dataset.set);
     o.e=(o.e===b.dataset.eff)?null:b.dataset.eff;
     if(o.e) startRest(b.dataset.ex);
+    queueAdvance(b.dataset.ex);
     save(); clearTimeout(rt); render();
   });
   m.querySelectorAll('[data-sminus],[data-splus]').forEach(b=>b.onclick=()=>{
@@ -819,8 +895,7 @@ function wireExercise(m){
   });
   m.querySelectorAll('[data-next]').forEach(b=>b.onclick=()=>{
     const nx=dayView!==null?nextPending(dayView,b.dataset.next):null;
-    if(nx){ openEx=nx; calEx=null; scrollEx=nx; } else openEx=null;
-    clearTimeout(rt); render();
+    if(nx) gotoEx(nx,true);
   });
   m.querySelectorAll('[data-ckg],[data-crep]').forEach(el=>el.onchange=()=>{
     const id=el.dataset.ckg||el.dataset.crep;
@@ -843,67 +918,6 @@ function wireExercise(m){
     if(el.value.trim()==='') delete S.over[k]; else S.over[k]=+el.value;
     save(); scheduleRender();
   });
-}
-
-function renderCfg(){
-  const m=$('#main');
-  let h='<div class="card"><h2>Tu marca actual → peso de cada semana</h2>'
-    +'<div class="hint">En cada ejercicio mete <b>cuánto mueves ahora</b>: una serie reciente llevada cerca del fallo (ej. banca 100 kg × 8). La app estima tu 1RM y calcula el peso de arranque para el rango programado dejándote 2 reps en reserva; de ahí sale el plan de todas las semanas, que se ajusta con tus reps reales. Series de 5-12 reps estiman mejor que series muy largas.</div>'
-    +'<div class="hint">Incremento = cuánto sube el peso cuando todas las series llegan al tope del rango (mancuernas 2, barra 2,5, máquina 5 — edítalo a tu material). El campo Inicial se rellena solo; retócalo si no te cuadra.</div></div>';
-  DAYS.forEach(d=>{
-    if(!d[2]) return;
-    h+='<div class="card"><h2>'+d[0]+' · '+esc(d[1])+'</h2>';
-    d[2].forEach(e=>{
-      const id=e[0], c=S.cur[id]||['',''];
-      h+='<div class="cfgex"><div class="exname">'+esc(e[1])+(e[6]?' <span class="rampa">RAMPA</span>':'')+'</div>'
-        +'<div class="exmeta">'+e[2]+'×'+e[3]+'-'+e[4]+' · '+esc(e[7])+'</div>';
-      if(!NOCALC.has(id)){
-        const r=est(id);
-        h+='<div class="cfgrow">'
-          +'<label>Ahora muevo (kg)<br><input type="number" inputmode="decimal" step="0.5" data-ckg="'+id+'" value="'+c[0]+'"></label>'
-          +'<span style="font-size:16px;color:var(--mut)">×</span>'
-          +'<label>reps<br><input type="number" inputmode="numeric" data-crep="'+id+'" value="'+c[1]+'"></label>'
-          +'<span class="hint" style="flex:1 1 130px;margin:0">'+(r?('1RM ~'+r[0]+' kg → <b>empiezas con '+r[1]+' kg</b>'):'estimación al rellenar')+'</span>'
-          +'</div>';
-      }else{
-        h+='<div class="hint" style="margin:4px 0 0">Sin cálculo: apunta directamente el lastre inicial (0 si vas a peso corporal).</div>';
-      }
-      h+='<div class="cfgrow">'
-        +'<label>Inicial (sem. 1)<br><input type="number" inputmode="decimal" step="0.5" data-base="'+id+'" value="'+(S.base[id]??'')+'"></label>'
-        +'<label>Incremento<br><input type="number" inputmode="decimal" step="0.5" data-inc="'+id+'" value="'+(S.inc[id]??e[5])+'"></label>'
-        +'<label>Esta semana ('+week+')<br><b style="font-size:16px">'+(weight(id,week)??'—')+' kg</b></label>'
-        +'<label>Series (sem. '+week+')<br><b style="font-size:16px">'+prescribedSets(id,week)+'</b></label>'
-        +(NOCALC.has(id)?'':'<label>1RM est. viva<br><b style="font-size:16px">'+(rmAt(id,week)!==null?Math.round(rmAt(id,week))+' kg':'—')+'</b></label>')
-        +'</div></div>';
-    });
-    h+='</div>';
-  });
-  h+='<div class="card"><h2>Copia de seguridad</h2>'
-    +'<div class="hint">Los datos viven en este navegador. Exporta de vez en cuando por si limpias datos o cambias de móvil.</div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="exp">Exportar</button><button class="btn ghost" id="imp">Importar</button></div>'
-    +'<textarea id="io" placeholder="El texto exportado aparece aquí; pégalo aquí para importar."></textarea></div>';
-  m.innerHTML=h;
-  function curChange(id){
-    const kg=m.querySelector('[data-ckg="'+id+'"]').value;
-    const rp=m.querySelector('[data-crep="'+id+'"]').value;
-    if(kg===''&&rp==='') delete S.cur[id]; else S.cur[id]=[+kg||0,+rp||0];
-    const r=est(id); if(r) S.base[id]=r[1];
-    save(); scheduleRender();
-  }
-  m.querySelectorAll('[data-ckg]').forEach(i=>i.onchange=()=>curChange(i.dataset.ckg));
-  m.querySelectorAll('[data-crep]').forEach(i=>i.onchange=()=>curChange(i.dataset.crep));
-  m.querySelectorAll('[data-base]').forEach(i=>i.onchange=()=>{
-    if(i.value==='')delete S.base[i.dataset.base]; else S.base[i.dataset.base]=+i.value; save(); scheduleRender();
-  });
-  m.querySelectorAll('[data-inc]').forEach(i=>i.onchange=()=>{
-    if(i.value==='')delete S.inc[i.dataset.inc]; else S.inc[i.dataset.inc]=+i.value; save(); scheduleRender();
-  });
-  $('#exp').onclick=()=>{ $('#io').value=JSON.stringify(S); $('#io').select();
-    try{navigator.clipboard.writeText($('#io').value);}catch(e){} };
-  $('#imp').onclick=()=>{ try{
-      const d=JSON.parse($('#io').value); if(!d||typeof d!=='object')throw 0;
-      S=Object.assign({base:{},inc:{},reps:{},over:{},bw:{},cur:{},setsOver:{},chk:{}},d); normReps(); save(); render(); alert('Importado ✓');
-    }catch(e){ alert('Ese texto no es una copia válida.'); } };
 }
 
 // ---- Progreso ----
@@ -1081,7 +1095,6 @@ function renderProg(){
   m.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{ progWeek=+b.dataset.pw; renderProg(); });
 }
 $('#nav-train').onclick=()=>{ if(tab==='train') dayView=null; tab='train'; render(); };
-$('#nav-cfg').onclick=()=>{tab='cfg';render();};
 $('#nav-prog').onclick=()=>{tab='prog';render();};
 render();
 </script>
