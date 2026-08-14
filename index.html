@@ -293,7 +293,7 @@ textarea{
 
 <header>
   <h1>Entrenamiento</h1>
-  <div class="sub" id="subline">Hipertrofia 7 semanas · definición 2.400 kcal · desde el 3 ago 2026</div>
+  <div class="sub" id="subline">Hipertrofia 7 semanas · definición 2.400 kcal · desde el 3 ago 2026 · <span id="appv"></span></div>
   <div class="weekbar" id="weekbar"></div>
 </header>
 <main id="main"></main>
@@ -361,6 +361,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
+const APP_V = '14 ago · r7'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -1297,6 +1298,7 @@ $('#nav-today').onclick=()=>{ // logo central: directo a la sesión de hoy
   window.scrollTo(0,0); clearTimeout(rt); render();
 };
 $('#nav-prog').onclick=()=>{tab='prog';render();};
+document.getElementById('appv').textContent=APP_V;
 render();
 cloudPull();
 if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js').catch(function(){}); }catch(e){} }

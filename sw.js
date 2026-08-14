@@ -1,5 +1,5 @@
 // Service worker: la app funciona sin cobertura (red primero, caché de respaldo)
-const C = 'plan-hipertrofia-v1';
+const C = 'plan-hipertrofia-v2';
 self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(
