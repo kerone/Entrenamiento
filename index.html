@@ -361,7 +361,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r7'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r8'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -829,9 +829,9 @@ function gotoEx(id,smooth){
   if(pg){ const i=Math.max(0,exIdx(id)); pg.scrollTo({left:i*pg.clientWidth, behavior:smooth?'smooth':'auto'}); }
   updateDayHud();
 }
-function fullDone(id){ // todas las series prescritas con reps apuntadas
-  const arr=setsOf(id,week), n=prescribedSets(id,week);
-  for(let i=0;i<n;i++) if(!arr[i]||arr[i].r==null) return false;
+function fullDone(id){ // todas las series prescritas con reps Y esfuerzo (solo reps en deload, sin botones F/E/L/X)
+  const arr=setsOf(id,week), n=prescribedSets(id,week), deload=week===7;
+  for(let i=0;i<n;i++){ const s=arr[i]; if(!s||s.r==null||(!deload&&!s.e)) return false; }
   return true;
 }
 function queueAdvance(id){ // al completar, pasa solo al siguiente pendiente (1,6 s de margen)
@@ -864,7 +864,7 @@ function renderDay(){
     +'<div class="dc-prog day"><i style="width:'+Math.round(st[0]/st[1]*100)+'%"></i></div>'
     +'<div class="pagerdots" id="pdots">'+d[2].map((e,i)=>'<button class="pd" data-goex="'+e[0]+'">'+(i+1)+'</button>').join('')+'</div>';
   if(deload) h+='<div class="hint" style="margin:0 0 8px">🔸 Deload: mitad de series, peso final de la semana 6. Nada de acercarse al fallo.</div>';
-  h+='<div class="hint" style="margin:0 0 8px">Desliza ↔ o toca un número para cambiar de ejercicio — el orden es libre. Al apuntar todas las series pasa solo al siguiente pendiente (incluidos los saltados).</div>';
+  h+='<div class="hint" style="margin:0 0 8px">Desliza ↔ o toca un número para cambiar de ejercicio — el orden es libre. Cuando todas las series tengan reps y esfuerzo (F/E/L/X) marcados, pasa solo al siguiente pendiente, incluidos los saltados; también puedes usar el botón «Hecho — siguiente».</div>';
   h+='<div class="pager" id="pager">'+d[2].map(e=>'<div class="expage"><div class="excard pagecard">'+exPage(e)+'</div></div>').join('')+'</div>';
   m.innerHTML=h;
   $('#backhome').onclick=()=>{ dayView=null; openEx=null; clearTimeout(advT); window.scrollTo(0,0); clearTimeout(rt); render(); };
