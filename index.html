@@ -368,7 +368,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r12'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r13'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -1358,11 +1358,11 @@ function renderProg(){
   m.querySelectorAll('[data-pex]').forEach(b=>b.onclick=()=>{ progEx=(progEx===b.dataset.pex)?null:b.dataset.pex; renderProg(); });
 }
 $('#nav-train').onclick=()=>{ if(tab==='train') dayView=null; tab='train'; render(); };
-$('#nav-today').onclick=()=>{ // logo central: directo a la sesión de hoy
-  tab='train'; calEx=null;
-  if(DAYS[todayIdx][2]){ dayView=todayIdx; openEx=null; }
-  else dayView=null; // día de descanso: portada
-  window.scrollTo(0,0); clearTimeout(rt); render();
+$('#nav-today').onclick=()=>{ // logo central: portada, centrada en el día que toca
+  tab='train'; dayView=null; openEx=null; calEx=null;
+  clearTimeout(rt); render();
+  const el=document.querySelector('.daycard.today');
+  if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
 };
 $('#nav-prog').onclick=()=>{tab='prog';render();};
 document.getElementById('appv').textContent=APP_V;
