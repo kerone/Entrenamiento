@@ -68,11 +68,19 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 /* ---- portada: tarjetas de día ---- */
 .daycard{
   display:block; width:100%; text-align:left; font:inherit; color:var(--ink);
-  background:var(--surface); border:1px solid var(--line); border-radius:12px;
-  padding:12px 14px; margin:0 0 10px; cursor:pointer;
+  background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:14px 16px; margin:0 0 12px; cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,.07);
 }
-.daycard.today{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset}
-.daycard.rest{cursor:default; background:var(--surface2)}
+.daycard.today{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset, 0 1px 3px rgba(0,0,0,.07)}
+.daycard.full{background:var(--ok-bg); border-color:var(--ok)}
+.daycard.full .dc-day, .daycard.full .dc-title{color:var(--ok)}
+.daycard.full .dc-state{background:var(--ok); color:var(--ok-ink)}
+.daycard.full .dc-prog{display:none}
+.daycard.full .chip{background:transparent; border-color:var(--ok); color:var(--ok)}
+.daycard.rest{cursor:default; background:var(--surface2); box-shadow:none}
+.chip{display:inline-block; background:var(--surface2); border:1px solid var(--line); color:var(--mut); border-radius:999px; padding:4px 10px; font-size:12px; font-weight:600; white-space:nowrap}
+.chip.sm{padding:2px 8px; font-size:11px}
 .dc-top{display:flex; align-items:center; gap:8px}
 .dc-day{font-size:11px; font-weight:800; letter-spacing:.8px; color:var(--mut)}
 .dc-today{background:var(--accent); color:var(--accent-ink); border-radius:999px; padding:2px 8px; font-size:10px; font-weight:800; letter-spacing:.5px}
@@ -81,7 +89,7 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 .dc-state.part{background:var(--info-bg); color:var(--info)}
 .dc-state.mut{background:var(--surface2); color:var(--mut); font-weight:500}
 .dc-title{font-size:16px; font-weight:700; margin-top:3px}
-.dc-meta{font-size:12px; color:var(--mut); margin-top:2px}
+.dc-meta{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px}
 .dc-prog{height:5px; background:var(--surface2); border-radius:99px; margin-top:10px; overflow:hidden}
 .dc-prog.day{margin:10px 0 14px; background:var(--surface)}
 .dc-prog i{display:block; height:100%; background:var(--ok); border-radius:99px}
@@ -103,7 +111,7 @@ main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 .pagecard{padding:12px}
 .pghead{display:flex; align-items:center; gap:10px; margin-bottom:4px}
 .pgname{font-size:15.5px; font-weight:700; line-height:1.25}
-.pgsub{font-size:12px; color:var(--mut); margin-top:1px}
+.pgsub{display:flex; gap:6px; flex-wrap:wrap; margin-top:4px}
 .stx{flex:0 0 36px; height:36px; border-radius:999px; background:var(--surface2); color:var(--mut); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; font-variant-numeric:tabular-nums}
 .stx.part{background:var(--info-bg); color:var(--info)}
 .stx.done{background:var(--ok); color:var(--ok-ink); font-size:15px}
@@ -384,7 +392,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r18'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r19'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -811,11 +819,11 @@ function renderHome(){
       const st=dayStats(di,week), full=st[0]===st[1]||closed, some=st[0]>0;
       const nsets=d[2].reduce((a,e)=>a+prescribedSets(e[0],week),0);
       const stTxt=full?'✓ hecho':some?st[0]+'/'+st[1]+' · seguir ▶':'empezar ▶';
-      h+='<button class="daycard'+(today?' today':'')+'" data-goday="'+di+'">'
+      h+='<button class="daycard'+(today?' today':'')+(full?' full':'')+'" data-goday="'+di+'">'
         +'<div class="dc-top"><span class="dc-day">'+d[0]+'</span>'+(today?'<span class="dc-today">HOY</span>':'')
         +'<span class="dc-state'+(full?' ok':some?' part':'')+'">'+stTxt+'</span></div>'
         +'<div class="dc-title">'+esc(d[1])+'</div>'
-        +'<div class="dc-meta">'+d[2].length+' ejercicios · '+nsets+' series · ≈'+fmtDur(estSession(di,week,false))+(deload?' · deload':'')+'</div>'
+        +'<div class="dc-meta"><span class="chip">'+d[2].length+' ejercicios</span><span class="chip">'+nsets+' series</span><span class="chip">≈'+fmtDur(estSession(di,week,false))+'</span>'+(deload?'<span class="chip">deload</span>':'')+'</div>'
         +'<div class="dc-prog"><i style="width:'+(full?100:Math.round(st[0]/st[1]*100))+'%"></i></div></button>';
     }
   });
@@ -1022,7 +1030,7 @@ function exPage(e){
   let nm=0; for(const s of setsOf(id,week)) if(marked(s)) nm++;
   return '<div class="pghead"><span class="stx'+(done?' done':nm>0?' part':'')+'">'+(done?'✓':nm+'/'+pres)+'</span>'
     +'<div class="pgt"><div class="pgname">'+esc(e[1])+(e[6]?' <span class="rampa">RAMPA</span>':'')+'</div>'
-    +'<div class="pgsub">'+pres+'×'+e[3]+'-'+e[4]+' · descansa '+e[8]+'</div></div></div>'
+    +'<div class="pgsub"><span class="chip sm">'+pres+'×'+e[3]+'-'+e[4]+'</span><span class="chip sm">descansa '+e[8]+'</span></div></div></div>'
     +exBody(e);
 }
 function exBody(e){
