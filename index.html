@@ -440,7 +440,7 @@ const C2START = 8;   // el ciclo 2 arranca en la S8, justo tras el deload
 function isDeload(w){ return w===7; } // único deload del plan; el mantenimiento posterior hace de descarga del C2
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '18 ago · r26'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '18 ago · r27'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -534,6 +534,45 @@ const NOCALC = new Set(['s1','m4','s6']); // lastre/corporal: sin cálculo de 1R
 // Básicos (multiarticulares): objetivos con RIR 2 y el L frena la progresión (el fallo ahí cuesta caro).
 // Aislamientos: objetivos a RIR 1 y estar al límite no frena — es lo esperado cerca del fallo.
 const ISO = new Set(['l3','l4','l5','s5','l6','m3','m4','m6','m7','x1','x2','x4','x5','x6','v2','v3','v4','v5','v6','v7','s4','s6']);
+// Variante sugerida por ejercicio: a nivel avanzado conviene rotar cada 2-3 ciclos
+// o cuando un ejercicio se estanca (mismo patrón, estímulo distinto).
+const VAR={
+ l1:'press militar sentado con mancuernas', l2:'press inclinado con mancuernas',
+ l7:'press plano con mancuernas', l3:'laterales con mancuerna sentado',
+ l4:'extensión de tríceps en polea con barra', l5:'press francés con mancuerna a dos manos',
+ s5:'curl martillo en polea con cuerda', l6:'crunch en máquina',
+ m1:'la otra opción del par (sentadilla ↔ prensa)', v1:'peso muerto rumano con mancuernas',
+ m5:'sentadilla búlgara', m7:'extensión unilateral', m3:'gemelo en prensa',
+ m4:'crunch invertido en banco declinado',
+ x1:'curl con mancuernas de pie', x2:'curl predicador', x3:'la otra opción del par (fondos ↔ press cerrado)',
+ x4:'pushdown unilateral', x5:'laterales en máquina', x6:'pájaros con mancuernas',
+ v8:'peso muerto convencional', v9:'hip thrust a una pierna', m6:'sissy squat',
+ v2:'curl femoral sentado', v3:'gemelo de pie unilateral', v4:'laterales con mancuerna (dropset)',
+ v5:'curl inclinado en banco', v6:'pushdown con agarre supino', v7:'rueda abdominal',
+ s1:'dominadas agarre supino', s2:'remo con mancuerna a una mano', s3:'jalón agarre ancho',
+ s4:'pájaros en polea', s6:'plancha con lastre'
+};
+// Estancamiento (patrón de avanzado): 3 semanas efectivas seguidas sin subir ni el
+// peso ni los objetivos de reps, con la última cargada de L/X. Salidas: descarga
+// del ejercicio (~-10%) y reconstruir, o rotar de variante.
+function stalledAt(id,w){
+  const wks=[];
+  for(let x=w-1; x>=1 && wks.length<3; x--){
+    if(isDeload(x)) continue;
+    if(setsOf(id,x).some(marked)) wks.push(x);
+  }
+  if(wks.length<3) return false;
+  const w3=wks[0], w1=wks[2]; // w3 = más reciente
+  const p1=weight(id,w1), p3=weight(id,w3);
+  if(p1==null||p3==null||p3>p1) return false;
+  const sum=x=>{ const t=targetsFor(id,x)||[]; let acc=0;
+    for(const v of t.slice(0,prescribedSets(id,x))) acc+=(v||0); return acc; };
+  const s1=sum(w1), s3=sum(w3);
+  if(s1>0 && s3>s1) return false; // con la semana base sin objetivos (sin calibrar) solo cuentan peso y esfuerzo
+  let lx=0, tot=0;
+  for(const st of setsOf(id,w3)){ const f=effOf(st,EX[id]); if(f){ tot++; if(f==='L'||f==='X') lx++; } }
+  return tot>0 && lx/tot>=0.5;
+}
 function est(id){ // [1RM estimada, peso de inicio] desde la marca actual
   const c = S.cur[id]; if(!c||!c[0]||!c[1]) return null;
   const e = EX[id];
@@ -871,6 +910,11 @@ function renderHome(){
       h+='<div style="background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:12.5px;font-weight:600">⚠ La semana '+(week-1)+' acabó muy al límite ('+Math.round((c.L+c.X)/tot*100)+'% de series en L/X). Repite pesos, no añadas series y prioriza dormir; si vuelve a pasar, adelanta el deload.</div>';
   }
   if(deload) h+='<div class="hint" style="margin-bottom:10px">🔸 Deload: mitad de las series que te ganaste, mismo peso que acabó la semana 6. Sal del gimnasio con sensación de no haber hecho nada — ese es el objetivo.</div>';
+  if(deload){
+    const cand=[];
+    DAYS.forEach(d=>{ if(d[2]) d[2].forEach(e=>{ if(stalledAt(e[0],7)) cand.push(e[1]); }); });
+    if(cand.length) h+='<div class="hint" style="margin-bottom:10px">🔁 <b>Candidatos a rotar de variante</b> en el próximo ciclo (acabaron el bloque estancados): '+cand.map(esc).join(' · ')+'.</div>';
+  }
   if(week>=C2START) h+='<div class="hint" style="margin-bottom:10px">📍 <b>Ciclo 2 — definición corta (S8-S10):</b> mismo plan con volumen base (sin rampa) y pesos heredados de donde acabó el ciclo 1. Objetivo: rascar ~1 kg más; al terminar, mantenimiento (3.070 kcal).</div>';
   else h+='<details class="howto"><summary>¿Cómo funciona la progresión?</summary><div style="margin-top:6px">La app <b>prescribe</b> series, reps (azul <b>→8</b>) y peso. Cumple TODOS los azules del ejercicio (reps y marca <b>F</b> o <b>E</b>) → la semana siguiente suben +1 las <b>dos series más flojas</b> (escalera: 5-5-5-5 → 6-6-5-5 → 6-6-6-6…); una serie incumplida o en L → se repite toda la prescripción; tope del rango en todas → sube el peso y la escalera arranca de nuevo. Desde la <b>semana 3</b> añade +1 serie/semana rotando entre lateral, bíceps y tríceps, SOLO si la semana anterior quedó completa, sin fallos, sin pasarte de series al límite y con el chequeo en verde; si no, se congela (nunca baja sola). Ajusta a mano con <b>− +</b> si un día no llegas. Marca tras cada serie: <b>F</b> fácil (RIR ≥3) · <b>E</b> exigente (1-2) · <b>L</b> al límite (0-1) · <b>X</b> fallo. Dos F seguidas → sube peso ya · X → baja ya · dos L → afloja el resto de la sesión. <b>Básicos vs aislamientos:</b> los aislamientos apuntan más cerca del fallo (RIR 1), estar al límite (L) no frena su escalera y una serie en F sube su objetivo +2; en ejercicios donde el salto de peso supera el ~8% de la carga, dos F no suben el peso en plena sesión — suben las reps.</div></details>';
   DAYS.forEach((d,di)=>{
@@ -1118,6 +1162,11 @@ function exBody(e){
     if(!r) presnote='<div class="presnote up">⬆ Rampa: +1 serie esta semana (semana anterior cumplida)</div>';
     else presnote='<div class="presnote hold">Rampa en pausa: '+r+'</div>';
   }
+  let stallnote='';
+  if(!deload && stalledAt(id,week)){
+    const k=inc(id), b90=base==null?null:(k>0?Math.max(k,Math.floor(base*0.9/k)*k):Math.round(base*0.9*2)/2);
+    stallnote='<div class="presnote hold">⚠ <b>Estancado 3 semanas</b>: ni el peso ni los objetivos suben y la última semana fue al límite. Opciones: baja a ~'+b90+' kg («ajustar») y reconstruye las reps, o rota de variante'+(VAR[id]?' — p. ej. <i>'+VAR[id]+'</i>':'')+'.</div>';
+  }
   let rows='';
   const prevArr = week>1 ? setsOf(id,week-1) : [];
   for(let i=0;i<total;i++){
@@ -1152,6 +1201,7 @@ function exBody(e){
     +(ovS?' <span class="ovs">a mano (motor: '+eng+')</span>':'')
     +' · '+esc(e[7])+'</div>'
     +presnote
+    +stallnote
     +(calEx===id?calPanel(e):'')
     +rows+nextBtn+exChartCard(id);
 }
