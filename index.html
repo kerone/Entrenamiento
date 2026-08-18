@@ -62,7 +62,7 @@ header{
 #themebtn svg{width:18px; height:18px}
 h1{font-size:17px; margin:0 0 2px; letter-spacing:.2px}
 .sub{font-size:12px; color:var(--mut)}
-.weekbar{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; padding:10px 0 7px}
+.weekbar{display:grid; grid-template-columns:repeat(5,1fr); gap:5px; padding:10px 0 7px}
 .wcell{
   border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:12px;
   padding:6px 2px 5px; font:inherit; cursor:pointer; text-align:center; min-width:0;
@@ -74,6 +74,8 @@ h1{font-size:17px; margin:0 0 2px; letter-spacing:.2px}
 .wcell.sel .wk-d{color:var(--accent-ink); opacity:.85}
 .wcell.sel.done .wk-n::after{color:var(--accent-ink)}
 .wcell.today:not(.sel){border-color:var(--accent)}
+.wcell.c2{border-style:dashed}
+.wcell.c2.sel{border-style:solid}
 main{padding:12px 12px 24px; max-width:640px; margin:0 auto}
 /* ---- portada: tarjetas de día ---- */
 .daycard{
@@ -366,7 +368,7 @@ textarea{
 <header>
   <button id="themebtn" title="Tema: automático / claro / oscuro"></button>
   <h1>Entrenamiento</h1>
-  <div class="sub" id="subline">Hipertrofia 7 semanas · definición 2.400 kcal · desde el 3 ago 2026 · <span id="appv"></span></div>
+  <div class="sub" id="subline">Definición 2.580 kcal · C1: 3 ago-20 sep · C2: 21 sep-11 oct · luego mantenimiento · <span id="appv"></span></div>
   <div class="weekbar" id="weekbar"></div>
 </header>
 <main id="main"></main>
@@ -433,9 +435,12 @@ const DAYS = [
 const ALLEX = DAYS.flatMap(d=>d[2]||[]);
 const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
+const TOTW = 10;     // 7 semanas del ciclo 1 + 3 del ciclo 2 (definición corta, 21 sep - 11 oct)
+const C2START = 8;   // el ciclo 2 arranca en la S8, justo tras el deload
+function isDeload(w){ return w===7; } // único deload del plan; el mantenimiento posterior hace de descarga del C2
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r25'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '18 ago · r26'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -576,7 +581,8 @@ function walk(id,w){
 // (F suma 3 reps al fallo estimado, E 1,5, L 0,5, X 0). Sin datos → marca de Config.
 const RIRBONUS={F:3,E:1.5,L:0.5,X:0};
 function rmAt(id,w){
-  for(let ww=Math.min(w-1,6); ww>=1; ww--){
+  for(let ww=w-1; ww>=1; ww--){
+    if(isDeload(ww)) continue; // el deload es submáximo a propósito: no estima 1RM
     const arr=setsOf(id,ww);
     if(!arr.some(s=>s&&s.r!=null)) continue;
     const wf=setWeightFn(id,ww);
@@ -604,12 +610,12 @@ function repTarget(id,rm,wt,i){
 function targetsFor(id,w){
   const e=EX[id], lo=e[3], hi=e[4], TOT=6;
   const base=weight(id,w);
-  if(w===7) return Array(TOT).fill(base!==null?lo:null); // deload: mínimo del rango
+  if(isDeload(w)) return Array(TOT).fill(base!==null?lo:null); // deload: mínimo del rango
   const fresh=()=>{ const rm=rmAt(id,w), wk=walk(id,w), out=[];
     for(let i=0;i<TOT;i++){ const wgt = base===null?null:(i<wk.per.length?wk.per[i]:wk.cur);
       out.push(repTarget(id,rm,wgt,i)); } return out; };
   let ww=0;
-  for(let x=Math.min(w-1,6); x>=1; x--){ if(setsOf(id,x).some(marked)){ ww=x; break; } }
+  for(let x=w-1; x>=1; x--){ if(isDeload(x)) continue; if(setsOf(id,x).some(marked)){ ww=x; break; } }
   if(!ww || weight(id,ww)!==base) return fresh();
   const prevT=targetsFor(id,ww), prevA=setsOf(id,ww), out=[];
   const iso=ISO.has(id);
@@ -667,7 +673,8 @@ function gateReason(g,x){ // null = rampa pasa · texto = motivo de congelar (mi
 }
 function presSets(id,w){ // prescripción del motor (sin ajuste manual)
   const e=EX[id], base=e[2];
-  if(w>=7) return Math.ceil(presSets(id,6)/2); // deload: mitad de lo ganado
+  if(isDeload(w)) return Math.ceil(presSets(id,6)/2); // deload: mitad de lo ganado
+  if(w>=C2START) return base; // ciclo 2: volumen base, sin rampa (semana 8+ de déficit)
   if(!e[6]||w<3) return base;
   const g=RAMPOF[id]; let n=base;
   for(let x=3;x<=Math.min(w,6);x++)
@@ -681,7 +688,8 @@ function prescribedSets(id,w){ // lo que manda hoy: ajuste manual > motor
 function weight(id,w){
   const o = S.over[id+'-'+w]; if(o!==undefined&&o!=='') return +o;
   if(w<=1) return (S.base[id]===undefined||S.base[id]==='')?null:+S.base[id];
-  if(w>=7){ const kk = walk(id,6); return kk.any ? kk.cur : weight(id,6); } // deload: peso final S6
+  if(isDeload(w)){ const kk = walk(id,6); return kk.any ? kk.cur : weight(id,6); } // deload: peso final S6
+  if(w===C2START){ const kk = walk(id,6); return kk.any ? kk.next : weight(id,6); } // C2: donde habría seguido el ciclo 1
   const kk = walk(id,w-1);
   if(kk.cur===null) return null;
   return kk.any ? kk.next : weight(id,w-1);
@@ -693,7 +701,7 @@ function span(w){
 }
 function currentWeek(){
   const d = Math.floor((Date.now()-W1)/864e5/7)+1;
-  return Math.min(7, Math.max(1, d));
+  return Math.min(TOTW, Math.max(1, d));
 }
 
 let tab='train', week=currentWeek();
@@ -803,12 +811,12 @@ function render(){
 function renderWeekbar(){ // vista calendario: una celda por semana
   const bar=$('#weekbar'); bar.innerHTML='';
   const cw=currentWeek();
-  for(let w=1;w<=7;w++){
+  for(let w=1;w<=TOTW;w++){
     const a=new Date(W1); a.setDate(a.getDate()+7*(w-1));
     const b=document.createElement('button');
-    b.className='wcell'+(w===week?' sel':'')+(weekDone(w)?' done':'')+(w===cw?' today':'');
-    b.innerHTML='<span class="wk-n">'+w+'</span><span class="wk-d">'+(w===7?'deload':a.getDate()+' '+MES[a.getMonth()])+'</span>';
-    b.title='Semana '+w+' · '+span(w);
+    b.className='wcell'+(w===week?' sel':'')+(weekDone(w)?' done':'')+(w===cw?' today':'')+(w>=C2START?' c2':'');
+    b.innerHTML='<span class="wk-n">'+w+'</span><span class="wk-d">'+(isDeload(w)?'deload':a.getDate()+' '+MES[a.getMonth()])+'</span>';
+    b.title='Semana '+w+(w>=C2START?' · ciclo 2 (definición corta)':'')+' · '+span(w);
     b.onclick=()=>{week=w;render();};
     bar.appendChild(b);
   }
@@ -836,7 +844,7 @@ function nextPending(di,afterId){ // siguiente pendiente en orden, volviendo a l
   return null;
 }
 function renderHome(){
-  const m=$('#main'); const deload=week===7;
+  const m=$('#main'); const deload=isDeload(week);
   m.onpointerdown=null;
   const c=S.chk[week]||{};
   const chkBtn=(f,v,lbl)=>'<button class="'+(v==='ok'?'ok':'bad')+((c[f]===v)?' on':'')+'" data-chk="'+f+'" data-v="'+v+'">'+lbl+'</button>';
@@ -863,6 +871,7 @@ function renderHome(){
       h+='<div style="background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:12.5px;font-weight:600">⚠ La semana '+(week-1)+' acabó muy al límite ('+Math.round((c.L+c.X)/tot*100)+'% de series en L/X). Repite pesos, no añadas series y prioriza dormir; si vuelve a pasar, adelanta el deload.</div>';
   }
   if(deload) h+='<div class="hint" style="margin-bottom:10px">🔸 Deload: mitad de las series que te ganaste, mismo peso que acabó la semana 6. Sal del gimnasio con sensación de no haber hecho nada — ese es el objetivo.</div>';
+  if(week>=C2START) h+='<div class="hint" style="margin-bottom:10px">📍 <b>Ciclo 2 — definición corta (S8-S10):</b> mismo plan con volumen base (sin rampa) y pesos heredados de donde acabó el ciclo 1. Objetivo: rascar ~1 kg más; al terminar, mantenimiento (3.070 kcal).</div>';
   else h+='<details class="howto"><summary>¿Cómo funciona la progresión?</summary><div style="margin-top:6px">La app <b>prescribe</b> series, reps (azul <b>→8</b>) y peso. Cumple TODOS los azules del ejercicio (reps y marca <b>F</b> o <b>E</b>) → la semana siguiente suben +1 las <b>dos series más flojas</b> (escalera: 5-5-5-5 → 6-6-5-5 → 6-6-6-6…); una serie incumplida o en L → se repite toda la prescripción; tope del rango en todas → sube el peso y la escalera arranca de nuevo. Desde la <b>semana 3</b> añade +1 serie/semana rotando entre lateral, bíceps y tríceps, SOLO si la semana anterior quedó completa, sin fallos, sin pasarte de series al límite y con el chequeo en verde; si no, se congela (nunca baja sola). Ajusta a mano con <b>− +</b> si un día no llegas. Marca tras cada serie: <b>F</b> fácil (RIR ≥3) · <b>E</b> exigente (1-2) · <b>L</b> al límite (0-1) · <b>X</b> fallo. Dos F seguidas → sube peso ya · X → baja ya · dos L → afloja el resto de la sesión. <b>Básicos vs aislamientos:</b> los aislamientos apuntan más cerca del fallo (RIR 1), estar al límite (L) no frena su escalera y una serie en F sube su objetivo +2; en ejercicios donde el salto de peso supera el ~8% de la carga, dos F no suben el peso en plena sesión — suben las reps.</div></details>';
   DAYS.forEach((d,di)=>{
     const today=di===todayIdx;
@@ -946,7 +955,7 @@ function gotoEx(id,smooth){
   updateDayHud();
 }
 function fullDone(id){ // todas las series prescritas con reps Y esfuerzo (solo reps en deload, sin botones F/E/L/X)
-  const arr=setsOf(id,week), n=prescribedSets(id,week), deload=week===7;
+  const arr=setsOf(id,week), n=prescribedSets(id,week), deload=isDeload(week);
   for(let i=0;i<n;i++){ const s=arr[i]; if(!s||s.r==null||(!deload&&!s.e)) return false; }
   return true;
 }
@@ -1050,7 +1059,7 @@ function updateDayHud(){ // refresca contador, barra, puntos y tiempo restante s
   });
 }
 function renderDay(){
-  const di=dayView, d=DAYS[di], m=$('#main'), deload=week===7;
+  const di=dayView, d=DAYS[di], m=$('#main'), deload=isDeload(week);
   if(openEx===null||exIdx(openEx)<0) openEx=firstPending(di)||d[2][0][0];
   const st=dayStats(di,week);
   let h='<div class="daybar"><button class="backbtn" id="backhome" title="Volver a la semana">←</button>'
@@ -1087,7 +1096,7 @@ function exPage(e){
     +exBody(e);
 }
 function exBody(e){
-  const id=e[0], deload=week===7;
+  const id=e[0], deload=isDeload(week);
   const eng=presSets(id,week), pres=prescribedSets(id,week);
   const ovS=S.setsOver[id+'-'+week]!==undefined&&S.setsOver[id+'-'+week]!==''&&S.setsOver[id+'-'+week]!==null;
   const arr=setsOf(id,week);
@@ -1150,13 +1159,13 @@ function exBody(e){
 function exChartCard(id){
   const pts=[], dataW=[];
   let any=false;
-  for(let w=1;w<=7;w++){ const v=weight(id,w); pts.push(v); dataW.push(setsOf(id,w).some(marked)); if(v!=null) any=true; }
+  for(let w=1;w<=TOTW;w++){ const v=weight(id,w); pts.push(v); dataW.push(setsOf(id,w).some(marked)); if(v!=null) any=true; }
   if(!any) return '<div class="exchart"><div class="exchart-t">Progresión de peso</div><div class="hint" style="margin:2px 0 0">La gráfica aparece en cuanto calibres el peso del ejercicio (chip «¿kg? · calibrar» de arriba).</div></div>';
   const W=320,H=112,pl=12,pr=30,pt=16,pb=18;
   const vals=pts.filter(v=>v!=null);
   let min=Math.min(...vals), max=Math.max(...vals);
   if(max-min<1){ max+=1; min=Math.max(0,min-1); }
-  const X=w=>pl+(W-pl-pr)*(w-1)/6, Y=v=>pt+(H-pt-pb)*(1-(v-min)/(max-min));
+  const X=w=>pl+(W-pl-pr)*(w-1)/(TOTW-1), Y=v=>pt+(H-pt-pb)*(1-(v-min)/(max-min));
   let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
   [0.25,0.75].forEach(f=>{ const y=pt+(H-pt-pb)*f; s+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'; });
   const xy=[]; pts.forEach((v,i)=>{ if(v!=null) xy.push([X(i+1),Y(v),i+1,v]); });
@@ -1169,7 +1178,7 @@ function exChartCard(id){
       s+='<text x="'+c[0].toFixed(1)+'" y="'+(c[1]-9).toFixed(1)+'" text-anchor="middle" font-size="10.5" font-weight="'+(cur?'700':'600')+'" fill="'+(cur?'var(--ink)':'var(--mut)')+'">'+c[3]+'</text>';
     prevVal=c[3];
   });
-  for(let w=1;w<=7;w++) s+='<text x="'+X(w).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" fill="'+(w===week?'var(--ink)':'var(--mut)')+'"'+(w===week?' font-weight="700"':'')+'>S'+w+'</text>';
+  for(let w=1;w<=TOTW;w++) s+='<text x="'+X(w).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="9" fill="'+(w===week?'var(--ink)':'var(--mut)')+'"'+(w===week?' font-weight="700"':'')+'>S'+w+'</text>';
   s+='</svg>';
   const rm=NOCALC.has(id)?null:rmAt(id,week);
   return '<div class="exchart"><div class="exchart-t">Progresión de peso</div>'+s
@@ -1243,7 +1252,7 @@ function wireExercise(m){
   }
   m.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.ck, i=+b.dataset.set;
-    if(week===7){ // deload sin esfuerzo: el check confirma o quita las reps
+    if(isDeload(week)){ // deload sin esfuerzo: el check confirma o quita las reps
       const o=slot(id,i);
       if(o.r==null){ if(b.dataset.tgt!==''){ o.r=+b.dataset.tgt; noteSetDone(id,i); } startRest(id); }
       else o.r=null;
@@ -1345,7 +1354,7 @@ function volCard(withSel){
   }
   if(withSel){
     h+='<div class="wk-mini">';
-    for(let w=1;w<=7;w++) h+='<button data-pw="'+w+'"'+(w===progWeek?' class="sel"':'')+'>S'+w+'</button>';
+    for(let w=1;w<=TOTW;w++) h+='<button data-pw="'+w+'"'+(w===progWeek?' class="sel"':'')+'>S'+w+'</button>';
     h+='</div>';
   }
   h+='<div class="hint">Series prescritas la semana S'+progWeek+' en toda la tabla (rampa y ajustes manuales incluidos): el músculo principal cuenta la serie entera y los secundarios media serie.</div></div>';
@@ -1364,11 +1373,11 @@ function applyPxFilter(){ // filtra las tarjetas en el DOM, sin re-render (no ro
 }
 const fmt=n=>n.toLocaleString('es-ES');
 function latestDataWeek(){
-  for(let w=7;w>=1;w--) for(const e of ALLEX) if(setsOf(e[0],w).some(marked)) return w;
+  for(let w=TOTW;w>=1;w--) for(const e of ALLEX) if(setsOf(e[0],w).some(marked)) return w;
   return 0;
 }
 function setWeightFn(id,w){
-  if(w===7){ const b=weight(id,7); return ()=>b; }
+  if(isDeload(w)){ const b=weight(id,w); return ()=>b; }
   const k=walk(id,w); return i=>(i<k.per.length?k.per[i]:k.cur);
 }
 function tonnage(w){
@@ -1406,15 +1415,15 @@ function colChart(vals){ // tonelaje S1..S7 en línea
   const vmax=Math.max(...pts.map(p=>p[1])), vmin=Math.min(...pts.map(p=>p[1]));
   const span=(vmax-vmin)||vmax||1;
   const lo=Math.max(0,vmin-span*0.2), hi=vmax+span*0.15;
-  const X=w=>pl+(W-pl-pr)*(w-1)/6, Y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
+  const X=w=>pl+(W-pl-pr)*(w-1)/(TOTW-1), Y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
   let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
   [0.25,0.75].forEach(f=>{ const y=pt+(H-pt-pb)*f; s+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'; });
   if(pts.length>1) s+='<polyline points="'+pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
   pts.forEach((p,i)=>{
-    s+='<g'+(p[0]===7?' opacity=".5"':'')+'><circle cx="'+X(p[0]).toFixed(1)+'" cy="'+Y(p[1]).toFixed(1)+'" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"><title>Semana '+p[0]+': '+fmt(p[1])+' kg</title></circle></g>';
+    s+='<g'+(isDeload(p[0])?' opacity=".5"':'')+'><circle cx="'+X(p[0]).toFixed(1)+'" cy="'+Y(p[1]).toFixed(1)+'" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"><title>Semana '+p[0]+': '+fmt(p[1])+' kg</title></circle></g>';
     if(i===pts.length-1) s+='<text x="'+X(p[0]).toFixed(1)+'" y="'+(Y(p[1])-9).toFixed(1)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)">'+fmt(p[1])+'</text>';
   });
-  for(let w=1;w<=7;w++) s+='<text x="'+X(w).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" fill="var(--mut)">S'+w+'</text>';
+  for(let w=1;w<=TOTW;w++) s+='<text x="'+X(w).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="9" fill="var(--mut)">S'+w+'</text>';
   return s+'</svg>';
 }
 function sparkline(pts){ // pesos por semana de un ejercicio
@@ -1429,12 +1438,12 @@ function sparkline(pts){ // pesos por semana de un ejercicio
   return s+'</svg>';
 }
 function bwChart(){
-  const wks=[]; for(let w=1;w<=7;w++) if(S.bw[w]!=null) wks.push([w,S.bw[w]]);
+  const wks=[]; for(let w=1;w<=TOTW;w++) if(S.bw[w]!=null) wks.push([w,S.bw[w]]);
   if(wks.length<2) return null;
   const W=320,H=120,p=18,pl=8,pr=34;
   const vals=wks.map(x=>x[1]);
   const min=Math.min(...vals)-0.4, max=Math.max(...vals)+0.4, r=max-min;
-  const X=w=>pl+(W-pl-pr)*((w-1)/6), Y=v=>H-p-(H-2*p)*((v-min)/r);
+  const X=w=>pl+(W-pl-pr)*((w-1)/(TOTW-1)), Y=v=>H-p-(H-2*p)*((v-min)/r);
   let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
   [0.25,0.75].forEach(f=>{ const y=p+(H-2*p)*f; s+='<line x1="'+pl+'" y1="'+y+'" x2="'+(W-pr)+'" y2="'+y+'" stroke="var(--line)" stroke-width="1"/>'; });
   s+='<polyline points="'+wks.map(x=>X(x[0]).toFixed(1)+','+Y(x[1]).toFixed(1)).join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
@@ -1450,12 +1459,12 @@ function renderProg(){
   const m=$('#main');
   const lw=latestDataWeek();
   if(!lw){
-    if(progWeek===null||progWeek>7) progWeek=week;
+    if(progWeek===null||progWeek>TOTW) progWeek=week;
     m.innerHTML='<div class="card"><h2>Progreso</h2><div class="hint">Aún no hay series apuntadas. Los gráficos aparecen en cuanto marques la primera serie en Entreno.</div></div>'+volCard(true);
     m.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{ progWeek=+b.dataset.pw; renderProg(); });
     return;
   }
-  if(progWeek===null||progWeek>7) progWeek=lw;
+  if(progWeek===null||progWeek>TOTW) progWeek=lw;
   // tiles
   const ton=tonnage(lw), tonPrev=lw>1?tonnage(lw-1):0;
   const sd=sessionsDone(lw), hs=hardSets(lw);
@@ -1483,7 +1492,7 @@ function renderProg(){
     +'</div>';
   // tonelaje
   h+='<div class="card"><h2>Tonelaje por semana (kg levantados)</h2><div class="chartwrap">'
-    +colChart([1,2,3,4,5,6,7].map(w=>tonnage(w)))
+    +colChart(Array.from({length:TOTW},(_,i)=>tonnage(i+1)))
     +'</div><div class="hint">Peso × reps de todas las series apuntadas. S7 atenuada: es deload, debe bajar. Los corporales sin lastre no suman.</div></div>';
   // series por grupo
   const gs=groupSets(progWeek);
@@ -1496,7 +1505,7 @@ function renderProg(){
     });
   } else h+='<div class="hint">Sin series en esta semana.</div>';
   h+='<div class="wk-mini">';
-  for(let w=1;w<=7;w++) h+='<button data-pw="'+w+'"'+(w===progWeek?' class="sel"':'')+'>S'+w+'</button>';
+  for(let w=1;w<=TOTW;w++) h+='<button data-pw="'+w+'"'+(w===progWeek?' class="sel"':'')+'>S'+w+'</button>';
   h+='</div></div>';
   // volumen prescrito por grupo muscular (tabla completa, con desglose por día)
   h+=volCard(false);
@@ -1536,7 +1545,8 @@ function renderProg(){
   h+='<div class="hint">Objetivo en definición: −0,5-0,7 %/semana. Más rápido dos semanas seguidas = sube 150-200 kcal.</div></div>';
   // esfuerzo RIR
   let effHtml='';
-  for(let w=1;w<=Math.min(lw,6);w++){
+  for(let w=1;w<=lw;w++){
+    if(isDeload(w)) continue;
     const c=effortDist(w); const tot=c.F+c.E+c.L+c.X;
     if(!tot) continue;
     effHtml+='<div class="effrow"><span class="efflbl">S'+w+'</span><div class="effbar" title="F '+c.F+' · E '+c.E+' · L '+c.L+' · X '+c.X+'">';
