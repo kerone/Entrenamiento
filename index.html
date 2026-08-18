@@ -401,6 +401,7 @@ const DAYS = [
   ['m1','Sentadilla o prensa',3,6,10,5,0,'barra 2,5-5 · prensa 5-10','2-3 min'],
   ['v1','Peso muerto rumano',3,6,10,2.5,0,'barra','2-3 min'],
   ['m5','Prensa posición cerrada',3,10,15,5,0,'pies juntos y bajos','1,5 min'],
+  ['m7','Extensión de cuádriceps',2,12,15,5,0,'máquina','1 min'],
   ['m3','Gemelo de pie',3,10,15,5,0,'máquina','1 min'],
   ['m4','Elevaciones de piernas colgado',3,10,15,0,0,'corporal · lastre opcional','1 min']]],
  ['MIÉRCOLES','Brazos + deltoide lateral',[
@@ -434,7 +435,7 @@ const EX = Object.fromEntries(ALLEX.map(e=>[e[0],e]));
 const W1 = new Date(2026,7,3); // lunes 3 ago 2026
 const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const KEY = 'plan-hipertrofia-v1';
-const APP_V = '14 ago · r24'; // súbelo en cada despliegue para ver qué versión carga el móvil
+const APP_V = '14 ago · r25'; // súbelo en cada despliegue para ver qué versión carga el móvil
 
 let S = {base:{}, inc:{}, reps:{}, over:{}, bw:{}, cur:{}, setsOver:{}, chk:{}, fin:{}, dur:{}};
 function normReps(){ // formato viejo (números) → {r, e}
@@ -527,7 +528,7 @@ function inc(id){ const v = S.inc[id]; return (v===undefined||v==='') ? EX[id][5
 const NOCALC = new Set(['s1','m4','s6']); // lastre/corporal: sin cálculo de 1RM
 // Básicos (multiarticulares): objetivos con RIR 2 y el L frena la progresión (el fallo ahí cuesta caro).
 // Aislamientos: objetivos a RIR 1 y estar al límite no frena — es lo esperado cerca del fallo.
-const ISO = new Set(['l3','l4','l5','s5','l6','m3','m4','m6','x1','x2','x4','x5','x6','v2','v3','v4','v5','v6','v7','s4','s6']);
+const ISO = new Set(['l3','l4','l5','s5','l6','m3','m4','m6','m7','x1','x2','x4','x5','x6','v2','v3','v4','v5','v6','v7','s4','s6']);
 function est(id){ // [1RM estimada, peso de inicio] desde la marca actual
   const c = S.cur[id]; if(!c||!c[0]||!c[1]) return null;
   const e = EX[id];
@@ -1300,7 +1301,7 @@ function wireExercise(m){
 }
 
 // ---- Progreso ----
-const GROUP={l1:'Hombro',l2:'Pecho',l7:'Pecho',l3:'Hombro',l4:'Tríceps',l5:'Tríceps',l6:'Abs',
+const GROUP={l1:'Hombro',l2:'Pecho',l7:'Pecho',l3:'Hombro',l4:'Tríceps',l5:'Tríceps',l6:'Abs',m7:'Cuádriceps',
  m1:'Cuádriceps',v1:'Isquios',m5:'Cuádriceps',m6:'Cuádriceps',m3:'Gemelo',m4:'Abs',
  x1:'Bíceps',x2:'Bíceps',x3:'Tríceps',x4:'Tríceps',x5:'Hombro',x6:'Delt. post.',
  v8:'Glúteo',v9:'Glúteo',v2:'Isquios',v3:'Gemelo',v4:'Hombro',v5:'Bíceps',v6:'Tríceps',v7:'Crunch' };
@@ -1311,7 +1312,7 @@ const MUSC={
  l1:['Hombro',['Tríceps']], l2:['Pecho',['Hombro','Tríceps']], l7:['Pecho',['Hombro','Tríceps']], l3:['Hombro',[]],
  l4:['Tríceps',[]], l5:['Tríceps',[]], s5:['Bíceps',[]], l6:['Abs',[]],
  m1:['Cuádriceps',['Glúteo']], v1:['Isquios',['Glúteo']], m5:['Cuádriceps',['Glúteo']],
- m3:['Gemelo',[]], m4:['Abs',[]],
+ m3:['Gemelo',[]], m4:['Abs',[]], m7:['Cuádriceps',[]],
  x1:['Bíceps',[]], x2:['Bíceps',[]], x3:['Tríceps',['Pecho','Hombro']], x4:['Tríceps',[]],
  x5:['Hombro',[]], x6:['Delt. post.',['Espalda']],
  v8:['Glúteo',['Isquios','Cuádriceps']], v9:['Glúteo',['Isquios']], m6:['Cuádriceps',[]],
